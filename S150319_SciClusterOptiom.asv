@@ -1,0 +1,70 @@
+% S_SciClusterOptimization
+
+%% original output
+ND = 4;
+ND1 = 4;
+expdist2 = round(rand(ND));
+% disp(expdist2)
+
+%%
+rho = zeros(1,ND);
+
+tic
+for i=1:ND-1
+  for j=i+1:ND
+     rho(i)=rho(i)+expdist2(i,j);
+     rho(j)=rho(j)+expdist2(i,j);
+  end
+ disp(rho);
+end
+toc %7.053022
+rho1=rho;
+% disp(rho(1:ND1))
+%     16     2     3    13
+%      5    11    10     8
+%      9     7     6    12
+%      4    14    15     1
+% ----------------------------------
+%     18     2     3    13
+% 
+%     18    20    13    21
+% 
+%     18    20    25    33
+    
+%% optimized 1
+rho = zeros(1,ND);
+
+tic
+for i=1:ND-1
+    j = i+1:ND;
+    rho(i) = rho(i)*(ND-i) + sum(expdist2(i,j));
+    rho(j) = rho(j) + expdist2(i,j);
+    disp(rho);
+end
+toc %3.847825
+% disp(rho(1:ND1))
+rho2=rho;
+%%
+rhod=rho1-rho2;
+rhod(1:ND1)
+
+% %% optimize 2
+% tic
+% mr1 = triu(expdist2,1);
+% vr1 = sum(mr1);
+% 
+% 
+% toc
+
+%% hybrid
+
+for i=1:ND-1
+  for j=i+1:ND
+     rho(i)=rho(i)+expdist2(i,j);
+     rho(j)=rho(j)+expdist2(i,j);
+  end
+  
+    j = i+1:ND;
+    rho1(i) = rho1(i)*(ND-i) + sum(expdist2(i,j));
+    rho1(j) = rho1(j) + expdist2(i,j);
+end

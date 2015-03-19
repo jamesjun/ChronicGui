@@ -44,38 +44,37 @@ if nargout < 3, fclose(fid); end
 %Scale the channel and convert to double
 MAGIC_CONST = (384);  % Our best guess as to why Mladen's data are off
 ADC_bits = 16; %number of bits of ADC [was 16 in Chongxi original]
-scale = ((S.rangeMax-S.rangeMin)/(2^ADC_bits))/S.auxGain;  %Volts
-scale = (scale * 1e6);  % from volts to microvolts
+scale = ((S.rangeMax-S.rangeMin)/(2^ADC_bits))/S.auxGain * 1e6;  %uVolts
 if ~isempty(P.freqLim)
-    [vrFiltB, vrFiltA] = butter(4, P.freqLim / S.sRateHz * 2,'bandpass');
-    vrFiltB = (vrFiltB);
-    vrFiltA = (vrFiltA);
+    [vrFiltB, vrFiltA] = butter(4, P.freqLim / S.sRateHz * 2,'bandpass');    
 else
     vrFiltA = [];
 end
-if isempty(P.viChan)
-    mrWav = ((mrWav) - MAGIC_CONST)' .* scale;
-else
-    if ~iscell(P.viChan)
-        mrWav = ((mrWav(P.viChan,:)) - MAGIC_CONST)' .* scale;
-        if P.fMeanSubt
-            mrWav = bsxfun(@minus, mrWav, mean(mrWav, 2)); 
-        end
-        if ~isempty(vrFiltA)
-            mrWav = filter(vrFiltB, vrFiltA, mrWav); %filter data    
-        end
+
+if isempty(P.viChan), P.viChan = 1:size(mrWav,1); end
+if ~iscell(P.viChan), P.viChan = {P.viChan}; end
+
+cmWav = cell(size(P.viChan));
+for iShank1 = 1:numel(P.viChan)
+    mrWav1 = mrWav(P.viChan{iShank1},:)';    
+    % Mean subtract
+    if P.fMeanSubt
+        mrWav1 = bsxfun(@minus, mrWav1, mean(mrWav1, 2)); 
     else
-        cmWav = cell(size(P.viChan));
-        for iShank = 1:numel(P.viChan)
-            viChan = P.viChan{iShank};
-            cmWav{iShank} = ((mrWav(viChan,:)) - MAGIC_CONST)' .* scale;
-            if P.fMeanSubt
-                cmWav{iShank} = bsxfun(@minus, cmWav{iShank}, mean(cmWav{iShank}, 2)); 
-            end
-            if ~isempty(vrFiltA)
-                cmWav{iShank} = filter(vrFiltB, vrFiltA, cmWav{iShank}); %filter data    
-            end
-        end
-        mrWav = cmWav; % name change
+        mrWav1 = mrWav1 - MAGIC_CONST;
+    end   
+    % Filter or scale
+    if ~isempty(vrFiltA)
+        mrWav1 = filter(vrFiltB*scale, vrFiltA, mrWav1); %filter data    
+    else
+    	mrWav1 = mrWav1 * scale;
     end
+    cmWav{iShank1} = mrWav1;
+end
+
+% output formatting
+if numel(cmWav) == 1
+    mrWav = cmWav{1}; 
+else 
+    mrWav = cmWav;
 end
