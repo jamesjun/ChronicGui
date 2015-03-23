@@ -1,12 +1,11 @@
 function plotTetClu(mrPeak, varargin)
 nChans = size(mrPeak, 1);
 
-if isstruct(varargin{1}), P = varargin{1};
-else P = struct(varargin{:}); end
-
+P = funcInStr(varargin{:});
 if ~isfield(P, 'viClu'), P.viClu = []; end
 if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
 if ~isfield(P, 'shankOffY'), P.shankOffY = 0; end
+if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
 
 if nChans == 11, viTetChOff = [0 4 7];
 else viTetChOff = 0:4:nChans-4;
@@ -17,6 +16,7 @@ nPairs = size(mrTet,2);
 set(gca, {'Color', 'XTick', 'YTick'}, {'k',[],[]});
 axis equal;
 hold on;
+if ~isempty(P.viClu), mrColor = jet(max(P.viClu)+1); end
 for iTet = nTets:-1:1
    for iPair = 1:nPairs
         ch1 = mrTet(1, iPair) + viTetChOff(iTet);
@@ -29,14 +29,17 @@ for iTet = nTets:-1:1
             vlPlot = P.viClu == 0;
             scatter(vrX1(vlPlot), vrY1(vlPlot), 3, [.5 .5 .5], 'filled');
             
-            vlPlot = ~vlPlot; 
-            scatter(vrX1(vlPlot), vrY1(vlPlot), 3, P.viClu(vlPlot), 'filled');
+            vlPlot = P.viClu > 0; 
+            scatter(vrX1(vlPlot), vrY1(vlPlot), 3, mrColor(P.viClu(vlPlot),:), 'filled');
         end
         plot([0 0 1 1 0]+iPair-1, [0 1 1 0 0]+iTet-1 + P.shankOffY, 'w');
    end
 end        
 axis([0, nPairs, 0, nTets + P.shankOffY]);
 plot([0 0 1 1 0]*nPairs, [0 1 1 0 0]*nTets + P.shankOffY, 'w', 'LineWidth', 2);
-try tightfig; catch disp(lasterr); end
+title(P.vcTitle);
+set(gca, {'XScale', 'YScale'}, {'linear', 'linear'});
 
+% try tightfig; catch disp(lasterr); end
+% colormap jet;
 end %func
