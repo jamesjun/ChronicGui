@@ -3,7 +3,8 @@ function [mrWav, S, fid] = importWhisper(vcFullPath, varargin)
 % mrWav: in microvolts
 % if viChan is cell then mrWav is cell for each shank
 
-P = struct(varargin{:});
+if isstruct(varargin{:}), P = varargin{1}; 
+    else P = struct(varargin{:}); end
 if ~isfield(P, 'readDuration'), P.readDuration = []; end %in sec or range
 if ~isfield(P, 'viChan'), P.viChan = []; end
 if ~isfield(P, 'fid'), P.fid = []; end
@@ -56,7 +57,7 @@ if ~iscell(P.viChan), P.viChan = {P.viChan}; end
 
 cmWav = cell(size(P.viChan));
 for iShank1 = 1:numel(P.viChan)
-    mrWav1 = mrWav(P.viChan{iShank1},:)';    
+    mrWav1 = single(mrWav(P.viChan{iShank1},:)');    
     % Mean subtract
     if P.fMeanSubt
         mrWav1 = bsxfun(@minus, mrWav1, mean(mrWav1, 2)); 

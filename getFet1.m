@@ -1,9 +1,13 @@
-function cSFet = getFet1(vcFullpath, P)        
-[~,vcDate,~] = fileparts(vcFullpath);
-vcDate = vcDate(1:13);
-
-[cmData, Sfile] = importWhisper(vcFullpath, P);
-P.vcDate = vcDate;
-P.sRateHz = Sfile.sRateHz;
-cSFet = detectPeaks(cmData(P.viShank), P);
+function S = getFet1(mrData, P) 
+warning off;
+try
+    S = detectPeaks(mrData, P);
+    if P.fCluster
+        S.Sclu = clusterScience(S.mrPeak, ...
+            'fPlot', P.fPlot, 'vcDist', 'euclidean');
+    end                    
+catch
+    S = [];
+    disp(lasterr());
+end
 end %getFet1

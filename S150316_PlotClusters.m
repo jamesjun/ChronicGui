@@ -1,40 +1,87 @@
-%% single day plot. only plot shank 1 & 2
-%freqLim:  [300 3000]   [500 11875]
-%thresh: [2 4]  []
-obj = Animal('ANM282996');
+% %% single day plot. only plot shank 1 & 2
+% %freqLim:  [300 3000]   [500 11875]
+% %thresh: [2 4]  []
+% obj = Animal('ANM282996');
+% tOffset = 0;
+% tDuration = 20;
+% spkLim = [-8, 12];
+% viDay = [21];
+% viShank = [1];
+% % figure;
+% tic
+% [cSfet, vcTitle] = obj.plotClusters('viDay', viDay, 'readDuration', [0 tDuration]+tOffset, ...
+%     'maxAmp', 500, 'fUseSubThresh', 1, 'freqLim', [300 3000], ...
+%     'fMeanSubt', 1, 'thresh', [2 4], 'viShank', viShank, 'vcPeak', 'Vpp', ...
+%     'fSpkWav', 1, 'fPlot', 0, 'spkLim', spkLim);
+% toc
+
+%%
+warning off;
 tOffset = 0;
 tDuration = 20;
-
+spkLim = [-8, 12];
 viDay = [21];
 viShank = [1];
-figure;
+freqLim = [300 6000];  %[300 6000] [500 11875]
 tic
-cSfet = obj.plotClusters('viDay', viDay, 'readDuration', [0 tDuration]+tOffset, ...
-    'maxAmp', 500, 'fUseSubThresh', 0, 'freqLim', [300 3000], ...
+obj = Animal('ANM282996');
+obj = obj.getFet('viDay', viDay, 'readDuration', [0 tDuration]+tOffset, ...
+    'maxAmp', 500, 'fUseSubThresh', 1, 'freqLim', freqLim, ...
     'fMeanSubt', 1, 'thresh', [2 4], 'viShank', viShank, 'vcPeak', 'Vpp', ...
-    'fSpkWav', 1, 'fPlot', 0);
+    'fSpkWav', 1, 'fPlot', 0, 'spkLim', spkLim, 'fParfor', 0, 'fCluster', 0);
+% obj = obj.cluster();
 toc
-% return;
+tic;
+obj = obj.cluster('fPlot', 1);
+toc;
 
-save ANM282996_Day21Shank1 cSfet viDay viShank;
-
-%% cluster science method
-
-
-profile clear; profile on; tic
+return;
 
 
-for iDay1 = 1:numel(viDay)
-    for iShank1 = 1:numel(viShank)        
-        tic;
-        Sclu = clusterScience(cSfet{iDay1}{iShank1}.mrPeak, ...
-            'fPlot', 0, 'ginput', [0.9458, 205.7838], 'vcDist', 'euclidean');
-        toc
-        cSfet{iDay1}{iShank1}.viClu = Sclu.halo;
+obj.plotClusters();
+
+
+%%
+S = obj1.cmFet{end, end};
+figure;
+
+plotTetClu(S.mrPeak, 'viClu', S.Sclu.halo, 'maxAmp', 800);
+title(S.vcDate);
+
+
+%% all clusters
+MAX_AMP = 300;
+iDay = 1;
+iShank = 1;
+
+S = cSfet{iDay}{iShank};
+viClu = S.Sclu.halo;
+figure;
+plotTetClu(S.mrPeak, 'viClu', viClu, 'maxAmp', 800);
+% colormap jet;
+title(sprintf('%s, nClu:%d', S.vcDate, max(viClu)));
+% set(gca, 'Color', 'w'); 
+
+figure; hold on;
+mrColor = jet(max(viClu)+1);
+nChans = size(S.trSpkWav, 2);
+nTimeSpk = size(S.trSpkWav, 1); 
+ylim = [0 (nChans+1)*MAX_AMP];
+for iClu = 1:max(viClu)
+    viCluPlot = find(viClu==iClu);
+    xoff = size(S.trSpkWav, 1)*(iClu-1);
+    vrX = [1:size(S.trSpkWav, 1)] + xoff;
+    for iChan = 1:nChans
+        mrY = reshape(S.trSpkWav(:,iChan,viCluPlot), [nTimeSpk, numel(viCluPlot)]) + iChan*MAX_AMP;
+        plot(vrX, mrY, 'Color', mrColor(iClu,:), 'LineWidth', .5);
     end
+    hold on; plot(-spkLim(1)*[1 1]-1+xoff, ylim, 'w-');
 end
+axis tight;
+set(gca, {'XTick', 'YTick', 'Color'}, {[], [], 'k'});
+title(sprintf('#Spikes: %d, #Clu: %d', sum(viClu>0), max(viClu)))
+set(gcf, 'Name', vcTitle);
 
-toc; profile off; profile viewer;
 
 %%
 for iDay1 = 1:numel(viDay)
@@ -61,64 +108,40 @@ legend({'Shank1', 'Shank2'});
 ylabel('Number of clusters');
 title('Rat 2, Shank 1,2')
 
-%%
-S = cSfet{1}{1};
+
+
+
+%% specific cluster
+MAX_AMP = 500;
+iDay = 1;
+iShank = 1;
+iClu = 3;
+
+S = cSfet{iDay}{iShank};
 viClu = S.viClu;
-figure;
-plotTetClu(S.mrPeak, 'viClu', viClu, 'maxAmp', 800);
+% figure;
+viSpk = find(viClu == iClu);
+plotTetClu(S.mrPeak(:, viSpk), 'viClu', viClu(viSpk), 'maxAmp', 800);
 % colormap jet;
 title(sprintf('%s, nClu:%d', S.vcDate, max(viClu)));
 % set(gca, 'Color', 'w');
 
 figure; hold on;
-mrColor = jet(max(viClu));
-for iClu = 1:max(viClu)
-    viCluPlot = find(viClu==iClu);
-    vrX = [1:size(S.trSpkWav, 1)] + size(S.trSpkWav, 1)*(iClu-1);
-    for iChan = 1:size(S.trSpkWav, 2)
-        mrY = reshape(S.trSpkWav(:,iChan,viCluPlot), [25, numel(viCluPlot)]) + iChan*300;
-        plot(vrX, mrY, 'Color', mrColor(iClu,:), 'LineWidth', .5);
-    end
+
+viCluPlot = find(viClu==iClu);
+mrColor = jet(max(viClu)+1);
+nChans = size(S.trSpkWav, 2);
+nTimeSpk = size(S.trSpkWav, 1); 
+vrX = 1:nTimeSpk;
+mrX = repmat(vrX', [1, nChans]);
+for iSpk1 = 1:numel(viCluPlot)
+    iSpk = viCluPlot(iSpk1);
+    mrY = reshape(S.trSpkWav(:,:,iSpk), [nTimeSpk, nChans]) + ...
+        repmat(1:nChans, [nTimeSpk, 1])*MAX_AMP;
+    plot(mrX, mrY, '-', 'Color', rand(1,3), 'LineWidth', .5);
 end
+hold on; plot(-spkLim(1)*[1 1]-1, get(gca, 'YLim'), 'w-');
+
+    
 axis tight;
 set(gca, {'XTick', 'YTick', 'Color'}, {[], [], 'k'});
-
-%%
-% mrFet0 = load('example_distances.dat');
-% clusterScience(mrFet0);
-
-
-
-%%
-
-% 
-% %%
-% vcFullpath = obj.cs_fname{iDay};
-% [~,vcFilename,~] = fileparts(vcFullpath);
-% tic
-% [cmData, Sfile] = importWhisper(vcFullpath, 'readDuration', readDuration, ...
-%     'viChan', {obj.cvShankChan}, 'freqLim', freqLim, 'fMeanSubt', 1);
-% toc
-% 
-% %%
-% % warning off;
-% figure;
-% tic
-% cS = detectPeaks(cmData, 'maxAmp', 800, 'fPlot', 1, 'fUseSubThresh', 0, 'vcPeak', 'Vpp');
-% toc
-% title(sprintf('%s, t(s):%d-%d, %s', vcFilename, readDuration(1), readDuration(2), get(gcf, 'Name')));
-
-%%
-% figure; scatter(cS{1}.vrPosX, cS{1}.vrPosY, 10, cS{1}.vrAmp, 'filled');
-% % figure; scatter3(S.vrPosX, S.vrPosY, S.vrAmp, 5, S.vrAmp, 'filled');
-% colormap jet; set(gca, 'CLim', [0 300]);
-% 
-% %% latent variable
-% pcCutoff= .995;
-% [COEFF,SCORE,latent,tsquare] = princomp(S.mrPeak);
-% vrPcLat = cumsum(latent)/sum(latent);
-% nClu = sum(vrPcLat<pcCutoff);
-% figure; plot(vrPcLat(1:nClu));
-% 
-% [~, viClu] = max(abs(COEFF(:, 1:nClu)'));
-% figure; hist(viClu, 1:nClu);

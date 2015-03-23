@@ -46,31 +46,47 @@ else
     end
 end
 
-mlData = bsxfun(@lt, mrData, -vrThresh)';
-vlData = logical(conv(double(any(mlData)), [zeros(1, -P.spkLim(1)), ones(1, P.spkLim(2))], 'same'));
-if ~isempty(vrThreshW)
+%generate transition markers
+if ~isempty(vrThreshW) 
+    %do not convolve vlData for dual threshold scheme
     mlData = bsxfun(@lt, mrData, -vrThreshW)'; %widen the mask
+    vlData = logical(any(mlData));
+    vlDataS = logical(any(bsxfun(@lt, mrData, -vrThresh)'));
+    [viUp, viDn, nTran] = findTrans(vlData);
+    for iTran=1:nTran
+        %kill transitions that doesn't contain supra strong threshold
+        viRange = viUp(iTran):viDn(iTran);
+        if ~any(vlDataS(viRange))
+            vlData(viRange) = 0;
+            viUp(iTran) = nan;
+%             viDn(iTran) = nan;
+        end
+    end    
+    vlKill = isnan(viUp);
+    viUp(vlKill) = [];
+    viDn(vlKill) = [];
+    nTran = numel(viUp);
+else
+    %single threshold scheme. convolve threshold data
+    mlData = bsxfun(@lt, mrData, -vrThresh)';
+    vlData = logical(conv(double(any(mlData)), [zeros(1, -P.spkLim(1)), ones(1, P.spkLim(2))], 'same'));
+    [viUp, viDn, nTran] = findTrans(vlData);
 end
-try
-    viUp = find(diff(vlData) > 0);
-    viDn = find(diff(vlData) < 0);
-    if viDn(1) < viUp(1), viDn(1) = []; end
-    nTran = min(numel(viDn), numel(viUp));
-    viUp = viUp(1:nTran);
-    viDn = viDn(1:nTran);
-catch
-    viUp = [];
-    viDn = [];
-    nTran = 0;
-    S = [];
-    return;
+if nTran==0, S=[]; return; end
+
+% handle edge cases for spike table
+if viUp(1) + P.spkLim(1) < 1
+    viUp(1) = [];   viDn(1) = [];   nTran = nTran-1;
+end
+if viDn(end) + P.spkLim(2) > size(mrData, 1)
+    viUp(end) = [];   viDn(end) = [];   nTran = nTran-1;
 end
 
 % Mark channels that crossed transitions
-mlTran = false(nChans, nTran);
-mrMax = zeros(nChans, nTran);
-mrMin = zeros(nChans, nTran);
-miTime = zeros(nChans, nTran);
+mlTran = false(nChans, nTran); %if a channel crossed threshold or not
+mrMax = zeros(nChans, nTran, 'single');
+mrMin = zeros(nChans, nTran, 'single');
+miTime = zeros(nChans, nTran, 'single');
 for iTran = 1:nTran
     viRange = viUp(iTran):viDn(iTran);
     [mrMin(:,iTran), miTime(:,iTran)] = min(mrData(viUp(iTran):viDn(iTran), :)); 
@@ -92,19 +108,15 @@ end
 
 % Align time for spike table
 trSpkWav = [];
-mrPeakSq = mrPeak.^2; %following Masked Klustakwik paper 2015 Archive
-viTime = round(sum(mrPeakSq .* miTime) ./ sum(mrPeakSq)) + viUp; %weighted time
+mrPeakSq = mrMin.^2; %following Masked Klustakwik paper 2015 Archive
+viTime = round(sum(mrPeakSq .* miTime) ./ sum(mrPeakSq)) + viUp - 1; %weighted time
 if P.fSpkWav
     nSpkWav = diff(P.spkLim)+1;
-    trSpkWav = zeros(nSpkWav, nChans, nTran);
+    trSpkWav = zeros([nSpkWav, nChans, nTran], 'single');
     viRange0 = P.spkLim(1):P.spkLim(2);
     for iTran = 1:nTran
-        try
-            viRange1 = viRange0 + viTime(iTran);
-            trSpkWav(:, :, iTran) = mrData(viRange1, :);
-        catch
-            disp(lasterr);
-        end
+        viRange1 = viRange0 + viTime(iTran);
+        trSpkWav(:, :, iTran) = mrData(viRange1, :);
     end
 end
 

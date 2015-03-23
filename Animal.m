@@ -29,6 +29,14 @@ classdef Animal
         cvSpkThresh;
         mrSpkAmp90;
         mnSpkCnt;
+        
+        % getFet
+        cmFet; %cell of cell of struct
+        viShank;
+        viDay;
+        freqLim;
+        spkLim;
+        fMeanSubt;
     end
     
     methods
@@ -227,6 +235,7 @@ classdef Animal
                     error('Animal-Invalid probeType: %s', obj.probeType);
             end %switch
             
+            obj.cmFet = cell(numel(obj.cvShankChan), numel(obj.cs_fname));
             obj.nShanks = numel(obj.cvShankChan);    
             if isfield(P, 'readDuration')
                 obj = obj.getSpikes(P); 
@@ -279,9 +288,7 @@ classdef Animal
                 title(sprintf('%s, %s, %s', obj.animalID, obj.probeType, obj.implantStyle));
                 legend({'Shank1', 'Shank2', 'Shank3', 'Shank4'}, 'box', 'off');
             end
-            catch
-                disp(lasterr)
-            end
+            catch err,  disp(lasterr); end
         end
         
         %bar plots, cell matrix, shanks x days
@@ -329,9 +336,7 @@ classdef Animal
                             obj.cvSpkThresh{iShank, iDay1} = vrThresh;
                         end %shank
                         toc;
-                    catch
-                        disp(lasterr);
-                    end
+                    catch err,  disp(lasterr); end
                 end %day                
                 % cache the info
             end
@@ -413,8 +418,9 @@ classdef Animal
         end
         
         
-        function cS = plotClusters(obj, varargin)
-            P = struct(varargin{:});
+        %just get features without plotting
+        function obj = getFet(obj, varargin)
+            P = funcInStr(varargin{:});
             if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fname); end
             if ~isfield(P, 'readDuration'), P.readDuration = [0 100]; end
             if ~isfield(P, 'freqLim'), P.freqLim = [300 3000]; end
@@ -426,6 +432,108 @@ classdef Animal
             if ~isfield(P, 'vcPeak'), P.vcPeak = 'Vpp'; end  %or 'Vm'
             if ~isfield(P, 'fSpkWav'), P.fSpkWav = 0; end  %or 'Vm'
             if ~isfield(P, 'fPlot'), P.fPlot = 1; end  %or 'Vm'
+            if ~isfield(P, 'spkLim'), P.spkLim = [-8, 16]; end 
+            if ~isfield(P, 'fParfor'), P.fParfor = 1; end
+            if ~isfield(P, 'fCluster'), P.fCluster = 0; end
+
+            P.viChan = obj.cvShankChan; %for importWhisper
+            
+            cs_fname1 = obj.cs_fname(P.viDay);
+            warning off;            
+            for iDay1 = 1:numel(P.viDay) %limited by memory
+                [~,vcDate,~] = fileparts(cs_fname1{iDay1});
+                [cmData, Sfile] = importWhisper(cs_fname1{iDay1}, P);
+                P.sRateHz = Sfile.sRateHz;  
+                P.vcDate = vcDate(1:13);
+                cvFet = cell(size(P.viShank));
+                if P.fParfor
+                    parfor iShank1 = 1:numel(P.viShank)
+                        cvFet{iShank1} = getFet1(cmData{iShank1}, P);
+                    end      
+                else
+                    for iShank1 = 1:numel(P.viShank)       
+                        cvFet{iShank1} = getFet1(cmData{iShank1}, P);
+                    end       
+                end
+                obj.cmFet(P.viShank, P.viDay(iDay1)) = cvFet;
+            end   
+
+            % save param
+            obj.viShank = P.viShank;
+            obj.viDay = P.viDay;
+            obj.freqLim = P.freqLim;
+            obj.spkLim = P.spkLim;
+            obj.fMeanSubt = P.fMeanSubt;
+        end %getfet
+        
+        
+        function obj = cluster(obj, varargin)
+            P = funcInStr(varargin{:});
+%             if ~isfield(P, 'fParfor'), P.fParfor = 0; end
+            if ~isfield(P, 'fPlot'), P.fPlot = 1; end
+            if ~isfield(P, 'vcDist'), P.vcDist = 'euclidean'; end
+            if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
+            
+%             if P.fPlot, fig = figure; end
+            nShanks1 = numel(obj.viShank);
+            cs_fname1 = obj.cs_fname(obj.viDay);
+            for iDay1 = 1:numel(obj.viDay) %limited by memory
+                cvFet = obj.cmFet(obj.viShank, obj.viDay(iDay1));
+                [~,vcDate,~] = fileparts(cs_fname1{iDay1});
+                for iShank1 = 1:numel(obj.viShank)
+                    P.vcTitle = sprintf('%s, %s, Shank%d', obj.animalID, vcDate, obj.viShank(iShank1));
+                    S = cvFet{iShank1};
+                    S.Sclu = clusterScience(S.mrPeak, P); 
+                    cvFet{iShank1} = S;
+                    if P.fPlot  
+                        figure;
+                        subplot 121; 
+                        plotTetClu(S.mrPeak, 'viClu', S.Sclu.halo, 'maxAmp', P.maxAmp, 'vcTitle', P.vcTitle);
+                        subplot 122; 
+                        plotWaveform(S, 'iMax', -obj.spkLim(1), 'maxAmp', P.maxAmp);
+                    end
+                end
+                obj.cmFet(obj.viShank, obj.viDay(iDay1)) = cvFet;
+            end
+        end
+         
+        
+        function plotClusters(obj, varargin)
+            P = funcInStr(varargin{:});
+            if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
+            
+            cs_fname1 = obj.cs_fname(obj.viDay);
+            for iDay1 = 1:numel(obj.viDay) %limited by memory
+                cvFet = obj.cmFet(obj.viShank, obj.viDay(iDay1));
+                [~,vcDate,~] = fileparts(cs_fname1{iDay1});
+                for iShank1 = 1:numel(obj.viShank)
+                    P.vcTitle = sprintf('%s, %s, Shank%d', obj.animalID, vcDate, obj.viShank(iShank1));
+                    S = cvFet{iShank1};
+                    figure;                    
+                    subplot 121; 
+                    plotTetClu(S.mrPeak, 'viClu', S.Sclu.halo, 'maxAmp', P.maxAmp, 'vcTitle', P.vcTitle);
+                    subplot 122; 
+                    plotWaveform(S, 'iMax', -obj.spkLim(1), 'maxAmp', P.maxAmp);
+                end
+            end
+        end
+        
+        
+        % to be deprecated
+        function [cS, vcTitle] = plotClusters1(obj, varargin)
+            P = funcInStr(varargin{:});
+            if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fname); end
+            if ~isfield(P, 'readDuration'), P.readDuration = [0 100]; end
+            if ~isfield(P, 'freqLim'), P.freqLim = [300 3000]; end
+            if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
+            if ~isfield(P, 'fUseSubThresh'), P.fUseSubThresh = 0; end
+            if ~isfield(P, 'thresh'), P.thresh = ''; end
+            if ~isfield(P, 'fMeanSubt'), P.fMeanSubt = 1; end
+            if ~isfield(P, 'viShank'), P.viShank = 1:numel(obj.cvShankChan); end
+            if ~isfield(P, 'vcPeak'), P.vcPeak = 'Vpp'; end  %or 'Vm'
+            if ~isfield(P, 'fSpkWav'), P.fSpkWav = 0; end  %or 'Vm'
+            if ~isfield(P, 'fPlot'), P.fPlot = 1; end  %or 'Vm'
+            if ~isfield(P, 'spkLim'), P.spkLim = [-8, 16]; end 
             
             nDays1 = numel(P.viDay);
             
@@ -440,17 +548,19 @@ classdef Animal
                 cS{iDay1} = detectPeaks(cmData(P.viShank), 'maxAmp', P.maxAmp, 'fPlot', P.fPlot, ...
                         'fUseSubThresh', P.fUseSubThresh, 'vcPeak', P.vcPeak, ...
                         'sRateHz', Sfile.sRateHz, 'thresh', P.thresh, ...
-                        'vcDate', vcFilename(1:13), 'fSpkWav', P.fSpkWav);
+                        'vcDate', vcFilename(1:13), 'fSpkWav', P.fSpkWav, ...
+                        'spkLim', P.spkLim);
                 if P.fPlot, title(sprintf('%s', vcFilename(1:13)), 'interpreter', 'none'); end
 %                 title(sprintf('%s, t(s):%d-%d, %s', vcFilename, P.readDuration(1), P.readDuration(2), get(gcf, 'Name')));
             end
-            set(gcf, 'Name', ...
-                sprintf('%s; %d-%ds; 0..%d u%s; %d-%d Hz; #thresh:%d; fUseSubThresh:%d; fMeanSubt:%d', ...
+            vcTitle = sprintf(...
+                '%s; %d-%ds; 0..%d u%s; %d-%d Hz; #thresh:%d; fUseSubThresh:%d; fMeanSubt:%d', ...
                 obj.animalID, P.readDuration(1), P.readDuration(2), P.maxAmp, P.vcPeak, ...
-                P.freqLim(1), P.freqLim(2), numel(P.thresh), P.fUseSubThresh, P.fMeanSubt));
-            warning off;
+                P.freqLim(1), P.freqLim(2), numel(P.thresh), P.fUseSubThresh, P.fMeanSubt);
             if P.fPlot
-                try  tightfig; catch, disp(lasterr); end
+                set(gcf, 'Name', vcTitle);
+                try  tightfig; 
+                    catch err, disp(lasterr); end
             end
         end
     end %methods    

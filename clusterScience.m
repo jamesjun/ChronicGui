@@ -1,11 +1,14 @@
 function S = clusterScience(mrPeak, varargin)
 %mrPeak: matrix of features
-P = struct(varargin{:});
-if ~isfield(P, 'vcDist'), P.vcDist = 'mahalanobis'; end
-if ~isfield(P, 'fPlot'), P.fPlot = (nargout == 0); end 
-if ~isfield(P, 'ginput'), P.ginput = []; end
 
-vrDist = pdist(mrPeak', P.vcDist)';
+P = funcInStr(varargin{:});
+if ~isfield(P, 'vcDist'), P.vcDist = 'euclidean'; end
+if ~isfield(P, 'ginput'), P.ginput = []; end
+if ~isfield(P, 'fPlot'), P.fPlot = (nargout == 0) | isempty(P.ginput); end 
+if ~isfield(P, 'fPlotMds'), P.fPlotMds = 0; end
+if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
+
+vrDist = single(pdist(mrPeak', P.vcDist))';
 nPoints = size(mrPeak, 2);
 vrFet1 = zeros(size(vrDist));
 vrFet2 = zeros(size(vrDist));
@@ -16,19 +19,19 @@ for i = 1:(nPoints-1)
     vrFet2(i1:i2) = (i+1):nPoints;
     i1 = i2+1;
 end
-mrFet = [vrFet1, vrFet2, vrDist];
+% mrFet = [vrFet1, vrFet2, vrDist];
 
-ND=max(mrFet(:,2));
-NL=max(mrFet(:,1));
+ND=max(vrFet2);
+NL=max(vrFet1);
 if (NL>ND)
   ND=NL;
 end
-N=size(mrFet,1);
+N=numel(vrDist);
 
-
-dist = zeros(ND, ND);
-dist(mrFet(:,1) + (mrFet(:,2)-1)*ND) = mrFet(:,3);
-dist = dist + dist'; %make symmetric
+dist = squareform(vrDist);
+% dist = zeros(ND, ND);
+% dist(mrFet(:,1) + (mrFet(:,2)-1)*ND) = mrFet(:,3);
+% dist = dist + dist'; %make symmetric
 % dist(sub2ind([ND, ND], mrFet(:,2), mrFet(:,1))) = mrFet(:,3);
 
 
@@ -36,13 +39,13 @@ percent=2.0;
 fprintf('average percentage of neighbours (hard coded): %5.6f\n', percent);
 
 position=round(N*percent/100);
-sda=sort(mrFet(:,3));
+sda=sort(vrDist);
 dc=sda(position);
 
 fprintf('Computing Rho with gaussian kernel of radius: %12.6f\n', dc);
 
 % Gaussian kernel
-rho = zeros(1,ND);
+rho = zeros(1,ND, 'single');
 expdist2 = exp(-dist.*dist / dc^2);
 for i=1:ND-1
 %   for j=i+1:ND
@@ -97,9 +100,9 @@ disp('column 2:Delta')
 
 disp('Select a rectangle enclosing cluster centers')
 scrsz = get(0,'ScreenSize');
-if P.fPlot
-    figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
-end
+% if P.fPlot
+%     figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
+% end
 % ind = 1:ND;
 %gamma = rho .* delta;
 % for i=1:ND
@@ -110,20 +113,24 @@ end
 % if nargout > 0, return; end
 
 % subplot(2,1,1)
-tt=plot(rho(:),delta(:),'o','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor','k');
-title ('Decision Graph','FontSize',15.0)
-xlabel ('\rho')
-ylabel ('\delta')
-set(gca, {'XScale', 'YScale'}, {'log', 'log'});
+
+if P.fPlot
+    fig = figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
+    %     uiwait(msgbox('reposition and hit ok'));
+    tt=plot(rho(:),delta(:),'o','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor','k');
+    title(P.vcTitle)
+    xlabel ('\rho')
+    ylabel ('\delta')
+    set(gca, {'XScale', 'YScale'}, {'log', 'log'});
+    axis([1e-3 1e3 1e1 1e3])
+end
 
 % uiwait(msgbox('rescale'));
 if isempty(P.ginput)
-    figure; 
-    uiwait(msgbox('reposition and ok'));
-
+    uiwait(msgbox('Click outlier location'));
+    figure(fig);
     [rhomin deltamin] = ginput(1);
-    fprintf('rhomin: %f, deltamin: %f\n', rhomin, deltamin);
-    
+    fprintf('rhomin: %f, deltamin: %f\n', rhomin, deltamin);    
 else
     rhomin = P.ginput(1);
     deltamin = P.ginput(2);
@@ -150,6 +157,9 @@ for i=1:ND
     cl(ordrho(i))=cl(nneigh(ordrho(i)));
   end
 end
+
+
+
 %halo
 halo = cl;
 % halo1 = cl;
@@ -197,30 +207,25 @@ end
 % disp(abs(max(bord_rho1-bord_rho)))
 
 
-for i=1:NCLUST
-  nc=0;
-  nh=0;
-  for j=1:ND
-    if (cl(j)==i) 
-      nc=nc+1;
-    end
-    if (halo(j)==i) 
-      nh=nh+1;
-    end
-  end
-  fprintf('CLUSTER: %i CENTER: %i ELEMENTS: %i CORE: %i HALO: %i \n', i,icl(i),nc,nh,nc-nh);
+for iClu=1:NCLUST
+  nc = sum(cl==iClu);
+  nh = sum(halo==iClu);
+  fprintf('CLUSTER: %i CENTER: %i ELEMENTS: %i CORE: %i HALO: %i \n', iClu,icl(iClu),nc,nh,nc-nh);
 end
 
 % cmap=colormap;
 % ic = int8((1:NCLUST)/NCLUST * 64); %color index
-mrColor = jet(NCLUST);
-for i=1:NCLUST   
-%    subplot(2,1,1)
-   hold on
-   plot(rho(icl(i)),delta(icl(i)),'o','MarkerSize',8,'MarkerFaceColor',mrColor(i,:),'MarkerEdgeColor',mrColor(i,:));
-end
-    
 if P.fPlot
+    figure(fig);
+    mrColor = jet(NCLUST);
+    for i=1:NCLUST   
+    %    subplot(2,1,1)
+       hold on
+       plot(rho(icl(i)),delta(icl(i)),'o','MarkerSize',8,'MarkerFaceColor',mrColor(i,:),'MarkerEdgeColor',mrColor(i,:));
+    end
+end
+
+if P.fPlotMds
     subplot(2,1,2)
     disp('Performing 2D nonclassical multidimensional scaling')
     Y1 = mdscale(dist, 2, 'criterion','metricstress');
