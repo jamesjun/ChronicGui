@@ -12,7 +12,7 @@ title('Decision graph')
 xlabel ('\rho')
 ylabel ('\delta')
 set(gca, {'XScale', 'YScale'}, {'log', 'log'});
-axis([1e-3 1e4 1e1 1e3])
+% axis([1e-3 1e4 1e1 1e3])
 
 hold on;
 mrColor = [.5 .5 .5; jet(NCLUST-1)];

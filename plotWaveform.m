@@ -14,6 +14,9 @@ hold on;
 mrYoff = repmat((1:nChans) * P.maxAmp, [nTimeSpk, 1]);
 for iClu = 2:max(viClu)
     viCluPlot = find(viClu==iClu);
+    if isnan(S.vrIsoDist(iClu)), continue; end %skip if isnan
+%     if S.vrIsoDist(iClu) < 30, continue; end %distance too low
+    
 %     viCluPlot = viCluPlot(1); % plot only one
     xoff = size(S.trSpkWav, 1)*(iClu-1);
     vrX = [1:size(S.trSpkWav, 1)] + xoff;

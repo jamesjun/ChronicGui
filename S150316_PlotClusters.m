@@ -22,10 +22,10 @@
 warning off;
 fParfor = 1;
 tOffset = 0;
-tDuration = 30;
+tDuration = 120;
 spkLim = [-8, 12];
-viDay = [21];
-viShank = [1,2];
+viDay = [20,21];
+viShank = [1:4];
 freqLim = [500 11875];  %[300 3000] [300 6000] [500 11875] 
 maxAmp = 1000;
 tic
@@ -42,6 +42,11 @@ obj = obj.cluster('fPlot', 0, 'vcFet', 'peak', 'vcDist', 'euclidean', ...
     'maxAmp', 1000, 'fNormFet', 0, 'fParfor', fParfor);
 % obj.plotClusters('maxAmp', maxAmp);
 toc
+
+ANM282996 = obj;
+save ANM282996 ANM282996;
+
+%%
 obj.plotClusters('maxAmp', 1000);
 return;
 

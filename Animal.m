@@ -500,11 +500,7 @@ classdef Animal
                 catch err
                     disp('Parfor failed. Trying for-loop instead');
                     for iFet = 1:numel(cvFet)
-                        try
                         cvFet{iFet} = cluster1(cvFet{iFet}, viDay(iFet), viShank(iFet), P);
-                        catch err
-                            disp(lasterr)
-                        end
                     end
                 end
             else
@@ -530,7 +526,11 @@ classdef Animal
             for iFet = 1:numel(cvFet)
                 S = cvFet{iFet};
                 if isempty(S), continue; end
-                
+                try
+                if isempty(S.Sclu), continue; end %no clu detected
+                catch err
+                    disp(lasterr)
+                end
                 iShank = viShank(iFet);
                 iDay = viDay(iFet);
                 vcDate = getDateFromFullpath(obj.cs_fname{iDay});
@@ -559,7 +559,8 @@ classdef Animal
                     sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
                     nanmean(S.vrIsoDist), nanmean(S.vrIsiRatio));
                 
-                set(fig, 'Visible', 'on');
+                drawnow;
+%                 set(fig, 'Visible', 'on');
 %                 drawnow;
             end
         end

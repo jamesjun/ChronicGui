@@ -139,9 +139,9 @@ if P.fPlot
     end
 else
     if isempty(P.ginput) %auto determine
-        viRho = ordrho(end-5:end);
-        [deltamin, imax] = max(delta(viRho));
-        rhomin = rho(viRho(imax));
+        viRho = ordrho(end-4:end); %10 elements
+        deltamin = mean(delta(viRho));
+        rhomin = rho(viRho(1));
 %         [rhomin, imin] = min(rho(:));
 %         deltamin = delta(imin);
     end
@@ -281,10 +281,10 @@ end
 % end
 
 viClu = 1:max(cl);
-[~, viSort] = sort(hist(cl, viClu), 'descend'); %sort by population, descending order
+[~, viSort] = sort(hist(halo, viClu), 'descend'); %sort by population, descending order
 viClu(viSort) = 1:max(cl);
 cl = viClu(cl);
-halo(isnan(halo)) = 1;
+halo(isnan(halo)) = viSort(1); %most populus
 halo = viClu(halo);
 icl(viClu) = icl;
 
