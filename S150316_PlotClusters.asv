@@ -20,12 +20,11 @@
 
 %%
 warning off;
-fParfor = 1;
 tOffset = 0;
 tDuration = 30;
 spkLim = [-8, 12];
-viDay = [21];
-viShank = [1,2];
+viDay = [20,21];
+viShank = [1:4];
 freqLim = [500 11875];  %[300 3000] [300 6000] [500 11875] 
 maxAmp = 1000;
 tic
@@ -33,15 +32,16 @@ obj = Animal('ANM282996');
 obj = obj.getFet('viDay', viDay, 'readDuration', [0 tDuration]+tOffset, ...
     'maxAmp', maxAmp, 'fUseSubThresh', 1, 'freqLim', freqLim, ...
     'fMeanSubt', 1, 'thresh', [2 4], 'viShank', viShank, 'vcPeak', 'Vm', ...
-    'fSpkWav', 1, 'fPlot', 0, 'spkLim', spkLim, 'fParfor', fParfor);
+    'fSpkWav', 1, 'fPlot', 0, 'spkLim', spkLim, 'fParfor', 0);
 % obj = obj.cluster();
 toc
 
 tic;
 obj = obj.cluster('fPlot', 0, 'vcFet', 'peak', 'vcDist', 'euclidean', ...
-    'maxAmp', 1000, 'fNormFet', 0, 'fParfor', fParfor);
+    'maxAmp', 1000, 'fNormFet', 0, 'fParfor', 1);
 % obj.plotClusters('maxAmp', maxAmp);
 toc
+
 obj.plotClusters('maxAmp', 1000);
 return;
 

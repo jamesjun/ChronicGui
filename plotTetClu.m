@@ -6,6 +6,7 @@ if ~isfield(P, 'viClu'), P.viClu = []; end
 if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
 if ~isfield(P, 'shankOffY'), P.shankOffY = 0; end
 if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
+if ~isfield(P, 'iCluNoise'), P.iCluNoise = []; end
 
 if nChans == 11, viTetChOff = [0 4 7];
 else viTetChOff = 0:4:nChans-4;
@@ -16,7 +17,9 @@ nPairs = size(mrTet,2);
 set(gca, {'Color', 'XTick', 'YTick'}, {'k',[],[]});
 axis equal;
 hold on;
-if ~isempty(P.viClu), mrColor = jet(max(P.viClu)+1); end
+if ~isempty(P.viClu)
+    mrColor = [.5, .5, .5; jet(max(P.viClu)-1)];
+end
 for iTet = nTets:-1:1
    for iPair = 1:nPairs
         ch1 = mrTet(1, iPair) + viTetChOff(iTet);
@@ -26,11 +29,7 @@ for iTet = nTets:-1:1
         if isempty(P.viClu)
             plot(vrX1, vrY1, 'w.', 'MarkerSize', 1);
         else
-            vlPlot = P.viClu == 0;
-            scatter(vrX1(vlPlot), vrY1(vlPlot), 3, [.5 .5 .5], 'filled');
-            
-            vlPlot = P.viClu > 0; 
-            scatter(vrX1(vlPlot), vrY1(vlPlot), 3, mrColor(P.viClu(vlPlot),:), 'filled');
+            scatter(vrX1, vrY1, 3, mrColor(P.viClu,:), 'filled');
         end
         plot([0 0 1 1 0]+iPair-1, [0 1 1 0 0]+iTet-1 + P.shankOffY, 'w');
    end

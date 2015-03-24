@@ -91,7 +91,8 @@ for iTran = 1:nTran
     viRange = viUp(iTran):viDn(iTran);
     [mrMin(:,iTran), miTime(:,iTran)] = min(mrData(viUp(iTran):viDn(iTran), :)); 
     mrMax(:,iTran) = max(mrData(viUp(iTran):viDn(iTran), :)); 
-    mlTran(:,iTran) = any(bsxfun(@and, mlData(:,viRange), vlData(viRange))');
+%     mlTran(:,iTran) = any(bsxfun(@and, mlData(:,viRange), vlData(viRange))');
+    mlTran(:,iTran) = any(mlData(:,viRange)');
     if ~P.fUseSubThresh
         viChanZero = find(~mlTran(:,iTran));
         mrMax(viChanZero, iTran) = 0;
@@ -121,7 +122,7 @@ if P.fSpkWav
 end
 
 % vrTimeSd = sqrt((sum(mrPeak .* miTime.^2 ) ./ sum(mrPeak)) - vrTime.^2);
-% vrTime = (viUp + vrTime)  / P.sRateHz;
+vrTime = viTime  / P.sRateHz;
 % vrTimeSd = vrTimeSd  / P.sRateHz;
 
 % vrAmp = sqrt(sum(mrPeak .* mrPeak));
@@ -142,7 +143,7 @@ vrPosY = sum(bsxfun(@times, mrPeak, vrPosYe)) ./ vrPeak;
 
 nTets = round(nChans/4);
 
-S = struct('mrPeak', mrPeak, 'vrAmp', vrAmp, 'viTime', viTime, ...
+S = struct('mrPeak', mrPeak, 'vrAmp', vrAmp, 'vrTime', vrTime, ...
     'mlTran', mlTran, 'vrPosX', vrPosX, 'vrPosY', vrPosY, 'vrPeak', vrPeak, ...
     'vrThresh', vrThresh, 'nTets', nTets, 'vcDate', P.vcDate, 'trSpkWav', trSpkWav);
 

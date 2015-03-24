@@ -74,7 +74,7 @@ for iShank1 = 1:numel(P.viChan)
 end
 
 % output formatting
-if numel(cmWav) == 1
+if ~iscell(P.viChan)
     mrWav = cmWav{1}; 
 else 
     mrWav = cmWav;

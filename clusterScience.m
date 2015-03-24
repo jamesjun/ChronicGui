@@ -4,28 +4,36 @@ function S = clusterScience(mrPeak, varargin)
 P = funcInStr(varargin{:});
 if ~isfield(P, 'vcDist'), P.vcDist = 'euclidean'; end
 if ~isfield(P, 'ginput'), P.ginput = []; end
-if ~isfield(P, 'fPlot'), P.fPlot = (nargout == 0) | isempty(P.ginput); end 
+if ~isfield(P, 'fPlot'), P.fPlot = (nargout == 0); end 
 if ~isfield(P, 'fPlotMds'), P.fPlotMds = 0; end
 if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
 
+% if isempty(P.ginput), P.fPlot = 1; end
+
 vrDist = single(pdist(mrPeak', P.vcDist))';
 nPoints = size(mrPeak, 2);
-vrFet1 = zeros(size(vrDist));
-vrFet2 = zeros(size(vrDist));
-i1 = 1;
-for i = 1:(nPoints-1)
-    i2 = i1 + nPoints - i - 1;
-    vrFet1(i1:i2) = i;
-    vrFet2(i1:i2) = (i+1):nPoints;
-    i1 = i2+1;
-end
-% mrFet = [vrFet1, vrFet2, vrDist];
 
-ND=max(vrFet2);
-NL=max(vrFet1);
-if (NL>ND)
-  ND=NL;
-end
+% tic
+% vrFet1 = zeros(size(vrDist));
+% vrFet2 = zeros(size(vrDist));
+% i1 = 1;
+% for i = 1:(nPoints-1)
+%     i2 = i1 + nPoints - i - 1;
+%     vrFet1(i1:i2) = i;
+%     vrFet2(i1:i2) = (i+1):nPoints;
+%     i1 = i2+1;
+% end
+% % mrFet = [vrFet1, vrFet2, vrDist];
+% toc
+
+NL = nPoints-1;
+ND = nPoints;
+
+% ND=max(vrFet2);
+% NL=max(vrFet1);
+% if (NL>ND)
+%   ND=NL;
+% end
 N=numel(vrDist);
 
 dist = squareform(vrDist);
@@ -122,16 +130,24 @@ if P.fPlot
     xlabel ('\rho')
     ylabel ('\delta')
     set(gca, {'XScale', 'YScale'}, {'log', 'log'});
-    axis([1e-3 1e3 1e1 1e3])
-end
-
-% uiwait(msgbox('rescale'));
-if isempty(P.ginput)
-    uiwait(msgbox('Click outlier location'));
-    figure(fig);
-    [rhomin deltamin] = ginput(1);
-    fprintf('rhomin: %f, deltamin: %f\n', rhomin, deltamin);    
+%     axis([1e-3 1e4 1e1 1e3])
+    if isempty(P.ginput)
+        uiwait(msgbox('Click outlier location'));
+        figure(fig);
+        [rhomin deltamin] = ginput(1);
+        fprintf('rhomin: %f, deltamin: %f\n', rhomin, deltamin);    
+    end
 else
+    if isempty(P.ginput) %auto determine
+        viRho = ordrho(end-5:end);
+        [deltamin, imax] = max(delta(viRho));
+        rhomin = rho(viRho(imax));
+%         [rhomin, imin] = min(rho(:));
+%         deltamin = delta(imin);
+    end
+end
+% uiwait(msgbox('rescale'));
+if ~isempty(P.ginput)
     rhomin = P.ginput(1);
     deltamin = P.ginput(2);
 end
@@ -150,6 +166,11 @@ end
 
 fprintf('NUMBER OF CLUSTERS: %i \n', NCLUST);
 disp('Performing assignation')
+
+if NCLUST == 0
+    S = [];
+    return; 
+end
 
 %assignation
 for i=1:ND
@@ -201,7 +222,7 @@ if (NCLUST>1)
 %             halo(i)=0;
 %         end
 %     end
-    halo(rho < bord_rho(cl)) = 0;
+    halo(rho < bord_rho(cl)) = nan; %backgorund cluster, instead of 0 JJJ
 end
 % disp(abs(max(halo1-halo)))
 % disp(abs(max(bord_rho1-bord_rho)))
@@ -215,15 +236,7 @@ end
 
 % cmap=colormap;
 % ic = int8((1:NCLUST)/NCLUST * 64); %color index
-if P.fPlot
-    figure(fig);
-    mrColor = jet(NCLUST);
-    for i=1:NCLUST   
-    %    subplot(2,1,1)
-       hold on
-       plot(rho(icl(i)),delta(icl(i)),'o','MarkerSize',8,'MarkerFaceColor',mrColor(i,:),'MarkerEdgeColor',mrColor(i,:));
-    end
-end
+
 
 if P.fPlotMds
     subplot(2,1,2)
@@ -267,4 +280,21 @@ end
 %    fprintf(faa, '%i %i %i\n',i,cl(i),halo(i));
 % end
 
-S = struct('rho', rho, 'delta', delta, 'cl', cl, 'halo', halo);
+viClu = 1:max(cl);
+[~, viSort] = sort(hist(cl, viClu), 'descend'); %sort by population, descending order
+viClu(viSort) = 1:max(cl);
+cl = viClu(cl);
+halo(isnan(halo)) = 1;
+halo = viClu(halo);
+icl(viClu) = icl;
+
+if P.fPlot
+    figure(fig); hold on;
+    mrColor = [.5 .5 .5; jet(NCLUST-1)];
+    for iClu=1:NCLUST   
+       plot(rho(icl(iClu)),delta(icl(iClu)),'o','MarkerSize',8,'MarkerFaceColor',...
+           mrColor(iClu,:),'MarkerEdgeColor',mrColor(iClu,:));
+    end
+end
+
+S = struct('rho', rho, 'delta', delta, 'cl', cl, 'halo', halo, 'icl', icl);
