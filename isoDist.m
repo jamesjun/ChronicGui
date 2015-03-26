@@ -8,6 +8,7 @@ nFet = size(mrFet, 1);
 mrFet = mrFet'; %for mahal, obs x dimm
 
 for iClu=2:nClu
+    try
     vlSpkIn = (viClu == iClu);
     nSpkIn = sum(vlSpkIn);
 %     nSpkOut = nSpk - nSpkIn;
@@ -17,4 +18,7 @@ for iClu=2:nClu
 %     mOut = m(~vlSpkIn);
 	sOut = sort(m(~vlSpkIn));
 	vrDist(iClu) = sOut(nSpkIn);
+    catch
+        continue;
+    end
 end

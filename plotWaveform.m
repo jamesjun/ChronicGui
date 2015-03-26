@@ -3,7 +3,7 @@ P = funcInStr(varargin{:});
 if ~isfield(P, 'iMax'), P.iMax = 1; end
 if ~isfield(P, 'maxAmp'), P.maxAmp = maxAmp; end
 
-viClu = S.Sclu.halo;
+viClu = S.Sclu.cl;
 mrColor = [.5, .5, .5; jet(max(viClu)-1)];
 nChans = size(S.trSpkWav, 2);
 nTimeSpk = size(S.trSpkWav, 1); 

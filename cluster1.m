@@ -19,8 +19,8 @@ try
     end
     S.Sclu = clusterScience(mrFet, P); 
     if ~isempty(S.Sclu)
-        S.vrIsoDist = isoDist(mrFet, S.Sclu.halo);
-        S.vrIsiRatio = isiRatio(S.vrTime, S.Sclu.halo);
+        S.vrIsoDist = isoDist(mrFet, S.Sclu.cl);
+        S.vrIsiRatio = isiRatio(S.vrTime, S.Sclu.cl);
     else
         S.vrIsoDist = [];
         S.vrIsiRatio = [];

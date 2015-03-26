@@ -9,7 +9,8 @@ if ~isfield(P, 'fPlot'), P.fPlot = (nargout == 0); end
 if ~isfield(P, 'fPlotMds'), P.fPlotMds = 0; end
 if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
 if ~isfield(P, 'fAskUser'), P.fAskUser = 1; end
-
+if ~isfield(P, 'nClu'), P.nClu = []; end
+if ~isfield(P, 'fReassign'), P.fReassign = 0; end
 % if isempty(P.ginput), P.fPlot = 1; end
 
 vrDist = single(pdist(mrPeak', P.vcDist))';
@@ -125,7 +126,7 @@ scrsz = get(0,'ScreenSize');
 % subplot(2,1,1)
 
 if P.fPlot || P.fAskUser
-    fig = figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
+    fig = figure; %('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
     %     uiwait(msgbox('reposition and hit ok'));
     tt=plot(rho(:),delta(:),'o','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor','k');
     title(P.vcTitle)
@@ -136,38 +137,37 @@ if P.fPlot || P.fAskUser
     if P.fAskUser
         uiwait(msgbox('Click outlier location'));
         figure(fig);
-        [rhomin deltamin] = ginput(1);
-        fprintf('rhomin: %f, deltamin: %f\n', rhomin, deltamin);    
-    else
-        [rhomin, deltamin, nclu] = guessNclu(rho, delta);
-    end
-else
-    if ~isempty(P.rhomin) && ~isempty(P.deltamin) %auto determine
-        rhomin = P.rhomin;
-        deltamin = P.deltamin; 
-    else
-%         nClu = guessNclu(rho, delta);
-        [rhomin, deltamin, nclu] = guessNclu(rho, delta);      %TODO: return index   
-%         viRho = ordrho(end-4:end); %10 elements
-%         deltamin = mean(delta(viRho));
-%         rhomin = rho(viRho(1));
-%         [rhomin, imin] = min(rho(:));
-%         deltamin = delta(imin);
+        [P.rhomin, P.deltamin] = ginput(1);
+        fprintf('rhomin: %f, deltamin: %f\n', P.rhomin, P.deltamin);    
     end
 end
-% uiwait(msgbox('rescale'));
+% else
+%     if ~isempty(P.rhomin) && ~isempty(P.deltamin) %auto determine
+%         rhomin = P.rhomin;
+%         deltamin = P.deltamin; 
+%     else
+% %         nClu = guessNclu(rho, delta);
+%         [rhomin, deltamin, nclu] = guessNclu(rho, delta, P.nclu);      %TODO: return index   
+% %         viRho = ordrho(end-4:end); %10 elements
+% %         deltamin = mean(delta(viRho));
+% %         rhomin = rho(viRho(1));
+% %         [rhomin, imin] = min(rho(:));
+% %         deltamin = delta(imin);
+%     end
 
-NCLUST=0;
-cl = -1 * ones(ND,1);
-% for i=1:ND
-%   cl(i)=-1;
-% end
-for i=1:ND
-  if ( (rho(i)>=rhomin) && (delta(i)>=deltamin))
-     NCLUST=NCLUST+1;
-     cl(i)=NCLUST;
-     icl(NCLUST)=i;
-  end
+% uiwait(msgbox('rescale'));
+if isempty(P.rhomin) || isempty(P.deltamin)
+    [cl, icl, NCLUST] = guessNclu(rho, delta, P.nclu);
+else
+    NCLUST=0;
+    cl = -1 * ones(ND,1);
+    for i=1:ND
+      if ( (rho(i)>=P.rhomin) && (delta(i)>=P.deltamin))
+         NCLUST=NCLUST+1;
+         cl(i)=NCLUST;
+         icl(NCLUST)=i;
+      end
+    end 
 end
 
 fprintf('NUMBER OF CLUSTERS: %i \n', NCLUST);
@@ -286,13 +286,18 @@ end
 %    fprintf(faa, '%i %i %i\n',i,cl(i),halo(i));
 % end
 
-viClu = 1:max(cl);
-[~, viSort] = sort(hist(halo, viClu), 'descend'); %sort by population, descending order
-viClu(viSort) = 1:max(cl);
-cl = viClu(cl);
-halo(isnan(halo)) = viSort(1); %most populus
-halo = viClu(halo);
-icl(viClu) = icl;
+% reassignment by size of elements per clusters
+if P.fReassign
+    viClu = 1:max(cl);
+    [~, viSort] = sort(hist(halo, viClu), 'descend'); %sort by population, descending order
+    viClu(viSort) = 1:max(cl);
+    cl = viClu(cl);
+    halo(isnan(halo)) = viSort(1); %most populus
+    halo = viClu(halo);
+    icl(viClu) = icl;
+else
+    halo(isnan(halo)) = 1; %set to background cluster
+end
 
 if P.fPlot
     figure(fig); hold on;

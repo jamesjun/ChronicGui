@@ -11,7 +11,7 @@ plot(rho(:),delta(:),'o','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor',
 title('Decision graph')
 xlabel ('\rho')
 ylabel ('\delta')
-set(gca, {'XScale', 'YScale'}, {'log', 'log'});
+set(gca, {'XScale', 'YScale'}, {'log', 'linear'});
 % axis([1e-3 1e4 1e1 1e3])
 
 hold on;

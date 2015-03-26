@@ -20,6 +20,7 @@ if ~isfield(P, 'spkLim'), P.spkLim = [-8, 16]; end
 if ~isfield(P, 'fSpkWav'), P.fSpkWav = 0; end %build spike table
 if ~isfield(P, 'fCov'), P.fCov = 0; end
 if ~isfield(P, 'nInterp'), P.nInterp = 1; end
+if ~isfield(P, 'fKillRefrac'), P.fKillRefrac = 0; end
 
 % multi-shank support
 if iscell(mrData)
@@ -53,6 +54,11 @@ if ~isempty(vrThreshW)
     %do not convolve vlData for dual threshold scheme
     mlData = bsxfun(@lt, mrData, -vrThreshW)'; %widen the mask
     vlData = logical(any(mlData));
+    
+    % convolve vlData for merging purpose
+    nOneMs = round(.0005 * P.sRateHz);
+    vlData = logical(conv(double(vlData), ones(nOneMs,1), 'same'));
+    
     vlDataS = logical(any(bsxfun(@lt, mrData, -vrThresh)'));
     [viUp, viDn, nTran] = findTrans(vlData);
     for iTran=1:nTran
@@ -84,6 +90,16 @@ if viDn(end) + P.spkLim(2) > size(mrData, 1)
     viUp(end) = [];   viDn(end) = [];   nTran = nTran-1;
 end
 
+% Kill refrac
+if P.fKillRefrac
+    nRefrac = round(.001 * P.sRateHz);
+    viKill = find(diff(viUp) < nRefrac) + 1;
+    viUp(viKill) = [];
+    viDn(viKill) = [];
+    nTran = nTran - numel(viKill);
+    fprintf('%d spikes killed\n', numel(viKill));
+end
+
 % Mark channels that crossed transitions
 if P.fSpkWav
     trSpkWav = zeros([diff(P.spkLim)+1, nChans, nTran], 'single');
@@ -104,9 +120,11 @@ for iTran = 1:nTran
     [vrMin1, viTime1] = min(mrData(viRange, :));      
 %     mlTran(:,iTran) = any(bsxfun(@and, mlData(:,viRange), vlData(viRange))');
 %     if ~P.fUseSubThresh, vrMin1(viChanZero) = 0; end 
-    vrMin1(viChanZero) = 0; 
-    vrMin2 = (vrMin1) .^ 2;
-    viTime(iTran) = round(sum(viTime1 .* vrMin2) ./ sum(vrMin2)) + viUp(iTran) - 1; %weighted time
+%     vrMin1(viChanZero) = 0; 
+%     vrMin2 = (vrMin1) .^ 4;
+%     viTime(iTran) = round(sum(viTime1 .* vrMin2) ./ sum(vrMin2)) + viUp(iTran) - 1; %weighted time
+    [~, imin1] = min(vrMin1);
+    viTime(iTran) = viTime1(imin1) + viUp(iTran) - 1;
 
     viRange = viRange0 + viTime(iTran);  %update the range  
     mrData1 = mrData(viRange, :);

@@ -68,13 +68,16 @@ obj = obj.cluster('fPlot', 1, 'vcFet', 'peak', 'vcDist', 'euclidean', ...
 
 
 %%
-viShank = 1;
+viShank = 2;
 tic
 obj = Animal('ANM282996');
-obj = obj.getFet('viDay', 21, 'readDuration', [0 60], 'fCov', 0, ...
+obj = obj.getFet('viDay', 21, 'readDuration', [0 30]+0, 'fCov', 1, ...
     'maxAmp', 1000, 'fUseSubThresh', 1, 'freqLim', [300 6000], ... %500 11875       300 6000
     'fMeanSubt', 1, 'thresh', [2 4], 'viShank', viShank, 'vcPeak', 'Vpp', ...
-    'fSpkWav', 1, 'fPlot', 1, 'spkLim', [-8, 12], 'fParfor', 0, 'nInterp', 4);
+    'fSpkWav', 1, 'fPlot', 0, 'spkLim', [-8, 12], 'fParfor', 0, 'nInterp', 4);
 toc
 obj = obj.cluster('viDay', 21, 'viShank', viShank, 'vcFet', 'peak', ...
-    'fAskUser', 1, 'vcDist', 'euclidean', 'fPlot', 1);
+    'fAskUser', 0, 'vcDist', 'euclidean', 'fPlot', 0, 'fShowWaveform', 0, ...
+    'maxAmp', 1000);
+%%
+% obj.plotClusters('viDay', 21, 'viShank', viShank, 'maxAmp', 1000);
