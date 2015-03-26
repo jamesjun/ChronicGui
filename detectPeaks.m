@@ -103,9 +103,8 @@ for iTran = 1:nTran
     
     [vrMin1, viTime1] = min(mrData(viRange, :));      
 %     mlTran(:,iTran) = any(bsxfun(@and, mlData(:,viRange), vlData(viRange))');
-    if ~P.fUseSubThresh        
-        vrMin1(viChanZero) = 0;
-    end
+%     if ~P.fUseSubThresh, vrMin1(viChanZero) = 0; end 
+    vrMin1(viChanZero) = 0; 
     vrMin2 = (vrMin1) .^ 2;
     viTime(iTran) = round(sum(viTime1 .* vrMin2) ./ sum(vrMin2)) + viUp(iTran) - 1; %weighted time
 
