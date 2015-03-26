@@ -2,6 +2,7 @@ function plotWaveform(S, varargin)
 P = funcInStr(varargin{:});
 if ~isfield(P, 'iMax'), P.iMax = 1; end
 if ~isfield(P, 'maxAmp'), P.maxAmp = maxAmp; end
+if ~isfield(P, 'nSpkMax'), P.nSpkMax = 100; end %show up to 100
 
 viClu = S.Sclu.cl;
 mrColor = [.5, .5, .5; jet(max(viClu)-1)];
@@ -9,13 +10,18 @@ nChans = size(S.trSpkWav, 2);
 nTimeSpk = size(S.trSpkWav, 1); 
 ylim([0 (nChans+1) * P.maxAmp]);
 xlim([1 max(viClu)] * size(S.trSpkWav, 1));
-% set(gcf, 'Visible', 'off');
+% set(gcf, 'Visible', 'off'); %try-catch?
 hold on;
 mrYoff = repmat((1:nChans) * P.maxAmp, [nTimeSpk, 1]);
 for iClu = 2:max(viClu)
     viCluPlot = find(viClu==iClu);
+    nSpkClu = numel(viCluPlot);
 %     if isnan(S.vrIsoDist(iClu)), continue; end %skip if isnan
 %     if S.vrIsoDist(iClu) < 30, continue; end %distance too low
+    if nSpkClu > P.nSpkMax
+        viPlot = random('unid', nSpkClu, [P.nSpkMax,1]);
+        viCluPlot = viCluPlot(viPlot);
+    end
     
 %     viCluPlot = viCluPlot(1); % plot only one
     xoff = size(S.trSpkWav, 1)*(iClu-1);

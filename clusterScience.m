@@ -11,6 +11,8 @@ if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
 if ~isfield(P, 'fAskUser'), P.fAskUser = 1; end
 if ~isfield(P, 'nClu'), P.nClu = []; end
 if ~isfield(P, 'fReassign'), P.fReassign = 0; end
+if ~isfield(P, 'GaussianKernel'), P.GaussianKernel = 1; end
+if ~isfield(P, 'fHalo'), P.fHalo = 0; end
 % if isempty(P.ginput), P.fPlot = 1; end
 
 vrDist = single(pdist(mrPeak', P.vcDist))';
@@ -56,53 +58,77 @@ dc=sda(position);
 fprintf('Computing Rho with gaussian kernel of radius: %12.6f\n', dc);
 
 % Gaussian kernel
-rho = zeros(1,ND, 'single');
-expdist2 = exp(-dist.*dist / dc^2);
-for i=1:ND-1
-%   for j=i+1:ND
-%      rho(i)=rho(i)+expdist2(i,j);
-%      rho(j)=rho(j)+expdist2(i,j);
-%   end
-  j = i+1:ND;
-  rho(i)=rho(i)+sum(expdist2(i,j));
-  rho(j) = rho(j) + expdist2(i,j);
+rho = zeros(ND,1, 'single');
+if P.GaussianKernel
+%     expdist2 = exp(-dist.*dist / dc^2);
+%     for i=1:ND-1
+%       j = i+1:ND;
+%       vr = expdist2(j,i);
+%       rho(i)=rho(i)+sum(vr); %faster to do this way
+%       rho(j) = rho(j) + vr; %expdist2 is symmetric
+%     end
+%     toc
+    rho = (sum(exp(-dist.*dist / dc^2))-1)*2; %(sum(expdist2)-1)/3;
+else
+    for i=1:ND-1
+        j = (i+1):ND;
+        j = j(dist(j,i) < dc);
+        rho(i) = rho(i) + numel(j);
+        rho(j) = rho(j) + 1;
+    end
 end
-rho=rho'; %if needed
 
-  
-%
-% "Cut off" kernel
-%
-%for i=1:ND-1
-%  for j=i+1:ND
-%    if (dist(i,j)<dc)
-%       rho(i)=rho(i)+1.;
-%       rho(j)=rho(j)+1.;
-%    end
-%  end
-%end
-
-maxd=max(max(dist));
-
+% determine delta
+maxd=max(vrDist);
 [~,ordrho]=sort(rho,'descend');
-delta(ordrho(1))=-1.;
-nneigh(ordrho(1))=0;
-for ii=2:ND
-   delta(ordrho(ii))=maxd;
-%    for jj=1:ii-1
-%      if(dist(ordrho(ii),ordrho(jj))<delta(ordrho(ii)))
-%         delta(ordrho(ii))=dist(ordrho(ii),ordrho(jj));
-%         nneigh(ordrho(ii))=ordrho(jj);
-%      end
-%    end
 
-   [delta(ordrho(ii)), imin] = min(dist(ordrho(ii),ordrho(1:ii-1)));
-   nneigh(ordrho(ii)) = ordrho(imin);
-end
-delta(ordrho(1))=max(delta(:));
-disp('Generated file:DECISION GRAPH')
-disp('column 1:Density')
-disp('column 2:Delta')
+% 
+% tic
+% nneigh = zeros(ND,1, 'single');
+% delta = zeros(ND,1, 'single');
+% nneigh(ordrho(1))=0;
+% for ii=2:ND
+%    [delta(ordrho(ii)), imin] = min(dist(ordrho(ii),ordrho(1:ii-1)));
+%    nneigh(ordrho(ii)) = ordrho(imin);
+% end
+% delta(ordrho(1))=maxd;
+% toc
+% nneigh0 = nneigh;
+% delta0 = delta;
+
+% tic
+dist1 = dist(ordrho, ordrho);
+dist1(tril(true(ND), 0)) = inf;
+[delta, vimin] = min(dist1);
+delta(ordrho) = delta;
+nneigh(ordrho) = ordrho(vimin);
+delta(ordrho(1)) = maxd;
+nneigh(ordrho(1))=0;
+delta=delta';
+% nneigh=nneigh';
+dist1 = []; %free memory
+% toc
+
+% std(delta0-delta)
+% std(nneigh0-nneigh)
+% figure; plot(delta0, delta, '.');
+% figure; plot(nneigh0, nneigh, '.');
+
+% 
+% tic
+% dist1 = dist(ordrho, ordrho);
+% dist1(tril(true(ND),0)) = inf;
+% [delta1, nneigh1] = min(dist1);
+% delta1(ordrho) = delta1;
+% nneigh1(ordrho) = nneigh1;
+% % delta1(ordrho(1))=-1.;
+% nneigh1(ordrho(1))=0;
+% delta1(ordrho(1))=max(delta1(:));
+% toc
+
+% disp('Generated file:DECISION GRAPH')
+% disp('column 1:Density')
+% disp('column 2:Delta')
 
 % fid = fopen('DECISION_GRAPH', 'w');
 % for i=1:ND
@@ -110,7 +136,7 @@ disp('column 2:Delta')
 % end
 
 % disp('Select a rectangle enclosing cluster centers')
-scrsz = get(0,'ScreenSize');
+% scrsz = get(0,'ScreenSize');
 % if P.fPlot
 %     figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
 % end
@@ -157,7 +183,7 @@ end
 
 % uiwait(msgbox('rescale'));
 if isempty(P.rhomin) || isempty(P.deltamin)
-    [cl, icl, NCLUST] = guessNclu(rho, delta, P.nclu);
+    [cl, icl, NCLUST] = guessNclu(rho, delta, P);
 else
     NCLUST=0;
     cl = -1 * ones(ND,1);
@@ -188,61 +214,36 @@ end
 
 
 %halo
-halo = cl;
-% halo1 = cl;
-% for i=1:ND
-%   halo(i)=cl(i);
-% end
-if (NCLUST>1)
-    bord_rho = zeros(NCLUST,1);
-    %   for i=1:NCLUST
-    %     bord_rho(i)=0.;
-    %   end
-%     bord_rho1 = bord_rho;
+if P.fHalo
+    halo = cl;
+    if (NCLUST>1)
+        bord_rho = zeros(NCLUST,1);
+        for i=1:ND-1
+            j=i+1:ND;
+            j = j((cl(i)~=cl(j)) & (dist(j,i)<=dc));
+            if ~isempty(j)
+                rho_aver=(rho(i)+rho(j))/2.;
+                bord_rho(cl(i)) = max(bord_rho(cl(i)), max(rho_aver));
+                bord_rho(cl(j)) = max(bord_rho(cl(j)), rho_aver);
+            end
 
-    for i=1:ND-1
-%         for j=i+1:ND
-%           if ((cl(i)~=cl(j))&& (dist(i,j)<=dc))
-%             rho_aver=(rho(i)+rho(j))/2.;
-%             if (rho_aver>bord_rho(cl(i))) 
-%               bord_rho(cl(i))=rho_aver;
-%             end
-%             if (rho_aver>bord_rho(cl(j))) 
-%               bord_rho(cl(j))=rho_aver;
-%             end
-%           end
-%         end %j
-
-        j=i+1:ND;
-        j = j((cl(i)~=cl(j)) & (dist(j,i)<=dc));
-        if ~isempty(j)
-            rho_aver=(rho(i)+rho(j))/2.;
-            bord_rho(cl(i)) = max(bord_rho(cl(i)), max(rho_aver));
-            bord_rho(cl(j)) = max(bord_rho(cl(j)), rho_aver);
-        end
-
-    end %i
-
-%     for i=1:ND
-%         if (rho(i)<bord_rho(cl(i)))
-%             halo(i)=0;
-%         end
-%     end
-    halo(rho < bord_rho(cl)) = nan; %backgorund cluster, instead of 0 JJJ
+        end %i
+        halo(rho < bord_rho(cl)) = nan; %backgorund cluster, instead of 0 JJJ
+    end
+else
+    halo = [];
 end
-% disp(abs(max(halo1-halo)))
-% disp(abs(max(bord_rho1-bord_rho)))
-
 
 for iClu=1:NCLUST
   nc = sum(cl==iClu);
-  nh = sum(halo==iClu);
-  fprintf('CLUSTER: %i CENTER: %i ELEMENTS: %i CORE: %i HALO: %i \n', iClu,icl(iClu),nc,nh,nc-nh);
+  if ~isempty(halo)
+      nh = sum(halo==iClu);
+  else
+      nh = nan;
+  end
+  fprintf('CLUSTER: %i CENTER: %i ELEMENTS: %i CORE: %i HALO: %i \n', ...
+      iClu,icl(iClu),nc,nh,nc-nh);
 end
-
-% cmap=colormap;
-% ic = int8((1:NCLUST)/NCLUST * 64); %color index
-
 
 if P.fPlotMds
     subplot(2,1,2)

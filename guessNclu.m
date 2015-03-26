@@ -1,15 +1,13 @@
-function [cl, icl, nclu] = guessNclu(rho, delta, nclu)
-SIGMA_FACTOR = 4;
-EXCL_DELTA = .01;
-EXCL_RHO = .01;
-
-if nargin < 3
-    nclu = [];
-end
+function [cl, icl, nclu] = guessNclu(rho, delta, varargin)
+P = funcInStr(varargin{:});
+if ~isfield(P, 'SIGMA_FACTOR'), P.SIGMA_FACTOR = 4; end
+if ~isfield(P, 'EXCL_DELTA'), P.EXCL_DELTA = .01; end
+if ~isfield(P, 'EXCL_RHO'), P.EXCL_RHO = .01; end
+if ~isfield(P, 'nclu'), P.nclu = []; end
 
 ND = numel(rho);
-ND_DELTA = ceil(ND*EXCL_DELTA); %1/10 population outlier
-ND_RHO = ceil(ND*EXCL_RHO); %1/10 population outlier
+ND_DELTA = ceil(ND*P.EXCL_DELTA); %1/10 population outlier
+ND_RHO = ceil(ND*P.EXCL_RHO); %1/10 population outlier
 delta = delta(:);
 rho = rho(:);
 [~, viDelta] = sort(delta, 'ascend');
@@ -30,11 +28,11 @@ y = delta(viPlot);
 mb = [x, ones(size(x))] \ y;
 y1 = y - mb(1)*x - mb(2); 
 
-if ~isempty(nclu)
+if ~isempty(P.nclu)
     [~, viY1] = sort(y1, 'descend');
-    viOut = viY1(1:nclu);
+    viOut = viY1(1:P.nclu);
 else
-    viOut = find(y1 > std(y1)*SIGMA_FACTOR); %6 sigma
+    viOut = find(y1 > std(y1)*P.SIGMA_FACTOR); %6 sigma
 end
 if isempty(viOut), [~, viOut] = max(y1); end
 [~, viiOut] = sort(y1(viOut), 'descend');

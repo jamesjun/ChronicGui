@@ -493,6 +493,8 @@ classdef Animal
             if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fnames); end
             if ~isfield(P, 'fAskUser'), P.fAskUser = 0; end
             if ~isfield(P, 'nclu'), P.nclu = []; end
+            if ~isfield(P, 'fCleanClu'), P.fCleanClu = 1; end
+            if ~isfield(P, 'spkLim'), P.spkLim = obj.spkLim; end
             
             P.cs_fname = obj.cs_fname;
             P.animalID = obj.animalID;
@@ -553,29 +555,36 @@ classdef Animal
                 fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
                 P.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
                 sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
-                nanmean(S.vrIsoDist(2:end)), nanmean(S.vrIsiRatio(2:end)));
+                nanmean(S.vrIsoDist(2:end-1)), nanmean(S.vrIsiRatio(2:end)));
                 
                 if P.fPlot
-                    fig = figure();     
+                    fig = figure('Visible', 'off');     
                     if P.fShowWaveform
-                        subplot(2,2,1);
+                        subplot(3,2,1);
                         plotScienceClu(S.Sclu);
 
-                        subplot(2,2,3); 
+                        subplot(3,2,3); 
                         figure(fig);
                         plotTetClu(S.mrPeak, 'viClu', S.Sclu.cl, 'maxAmp', ...
                             P.maxAmp, 'vcTitle', P.vcTitle);
+                        
+                        subplot(3,2,5);
+                        plotCluRaster(S.vrTime, S.Sclu.cl);
 
-                        subplot(2,2,[2,4]); 
+                        subplot(3,2,[2,4,6]); 
                         figure(fig);                    
                         plotWaveform(S, 'iMax', -obj.spkLim(1), 'maxAmp', P.maxAmp);
                     else
-                        subplot(2,1,1);
+                        subplot(3,1,1);
                         plotScienceClu(S.Sclu);
 
-                        subplot(2,1,2); 
+                        subplot(3,1,2); 
+                        figure(fig);
                         plotTetClu(S.mrPeak, 'viClu', S.Sclu.cl, 'maxAmp', ...
                             P.maxAmp, 'vcTitle', P.vcTitle);
+                        
+                        subplot(3,1,3);
+                        plotCluRaster(S.vrTime, S.Sclu.cl);
                     end
                     
                     set(fig, 'Name', sprintf(...
@@ -584,7 +593,8 @@ classdef Animal
                         obj.vcPeak, obj.freqLim(1), obj.freqLim(2), ...
                         obj.fUseSubThresh, obj.fMeanSubt, obj.nInterp, ...
                         obj.vcDist));
-                end
+                    set(fig, 'Visible', 'on');
+                end %fPlot
 
                 
                 drawnow;

@@ -18,13 +18,16 @@ try
         mrFet = bsxfun(@times, mrFet, 1./sqrt(sum(mrFet.^2)));
     end
     S.Sclu = clusterScience(mrFet, P); 
+    if P.fCleanClu
+        S.Sclu.cl = cleanClu(S.trSpkWav, S.Sclu.cl, P); 
+    end
     if ~isempty(S.Sclu)
         S.vrIsoDist = isoDist(mrFet, S.Sclu.cl);
         S.vrIsiRatio = isiRatio(S.vrTime, S.Sclu.cl);
     else
         S.vrIsoDist = [];
         S.vrIsiRatio = [];
-    end
+    end    
 
 catch err
     disp(lasterr);
