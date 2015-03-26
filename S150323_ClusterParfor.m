@@ -53,4 +53,28 @@ ANM282996 = obj;
 save ANM282996 ANM282996;
 
 %%
-obj.plotClusters('maxAmp', 1000);
+
+ANM282996.plotClusters('maxAmp', 100, 'fShowWaveform', 1, 'fPlot', 1, ...
+    'viDay', 18, 'viShank', 3);
+
+%% make a stacked plot of the number of clusters
+
+
+tic;
+obj = obj.cluster('fPlot', 1, 'vcFet', 'peak', 'vcDist', 'euclidean', ...
+    'maxAmp', 1000, 'fNormFet', 0, 'fParfor', fParfor, 'fGinput', 0, ...
+    'viDay', 21, 'viShank', 1);
+% obj.plotClusters('maxAmp', maxAmp);
+
+
+%%
+viShank = 1;
+tic
+obj = Animal('ANM282996');
+obj = obj.getFet('viDay', 21, 'readDuration', [0 32], 'fCov', 1, ...
+    'maxAmp', 1000, 'fUseSubThresh', 0, 'freqLim', [300 6000], ... %500 11875       300 6000
+    'fMeanSubt', 1, 'thresh', [2 4], 'viShank', viShank, 'vcPeak', 'Vpp', ...
+    'fSpkWav', 1, 'fPlot', 1, 'spkLim', [-8, 12], 'fParfor', 0, 'nInterp', 4);
+toc
+obj = obj.cluster('viDay', 21, 'viShank', viShank, 'vcFet', 'peak', ...
+    'fAskUser', 1, 'vcDist', 'euclidean', 'fPlot', 1);

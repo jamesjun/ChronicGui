@@ -11,6 +11,8 @@ try
             mrFet = S.mrPeak;
         case 'pca'                            
             mrFet = getWavPca(S.trSpkWav, 3);
+        case 'cov'
+            mrFet = S.mrCov;
     end
     if P.fNormFet
         mrFet = bsxfun(@times, mrFet, 1./sqrt(sum(mrFet.^2)));

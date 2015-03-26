@@ -42,6 +42,7 @@ classdef Animal
         vcFet;
         vcDist;
         maxAmp;
+        nInterp;
     end
     
     methods
@@ -434,12 +435,13 @@ classdef Animal
             if ~isfield(P, 'fUseSubThresh'), P.fUseSubThresh = 0; end
             if ~isfield(P, 'thresh'), P.thresh = ''; end
             if ~isfield(P, 'fMeanSubt'), P.fMeanSubt = 1; end
-            if ~isfield(P, 'viShank'), P.viShank = 1:numel(obj.cvShankChan); end
+            if ~isfield(P, 'viShank'), P.viShank = 1:obj.nShanks; end
             if ~isfield(P, 'vcPeak'), P.vcPeak = 'Vpp'; end  %or 'Vm'
             if ~isfield(P, 'fSpkWav'), P.fSpkWav = 0; end  %or 'Vm'
             if ~isfield(P, 'fPlot'), P.fPlot = 1; end  %or 'Vm'
             if ~isfield(P, 'spkLim'), P.spkLim = [-8, 16]; end 
             if ~isfield(P, 'fParfor'), P.fParfor = 1; end
+            if ~isfield(P, 'fPeak'), P.fPeak = 1; end
 %             if ~isfield(P, 'fCluster'), P.fCluster = 0; end
 
             P.viChan = obj.cvShankChan(P.viShank); %for importWhisper            
@@ -451,12 +453,14 @@ classdef Animal
                 P.sRateHz = Sfile.sRateHz;  
                 cvFet = cell(size(P.viShank));
                 if P.fParfor
+                    P.fPlot = 0;
                     parfor iShank1 = 1:numel(P.viShank)
-                        cvFet{iShank1} = getFet1(cmData{iShank1}, P);
+                        cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
                     end      
                 else
+                    if P.fPlot, figure; end
                     for iShank1 = 1:numel(P.viShank)       
-                        cvFet{iShank1} = getFet1(cmData{iShank1}, P);
+                        cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
                     end       
                 end
                 obj.cmFet(P.viShank, P.viDay(iDay1)) = cvFet;
@@ -472,6 +476,7 @@ classdef Animal
             obj.vcPeak = P.vcPeak;
             obj.fUseSubThresh = P.fUseSubThresh;
             obj.maxAmp = P.maxAmp;
+            obj.nInterp = P.nInterp;
         end %getfet
         
         
@@ -480,17 +485,20 @@ classdef Animal
             P = funcInStr(varargin{:});
             if ~isfield(P, 'vcDist'), P.vcDist = 'euclidean'; end
             if ~isfield(P, 'maxAmp'), P.maxAmp = 1000; end
-            if ~isfield(P, 'vcFet'), P.vcFet = 'peak'; end %peak, pca
+            if ~isfield(P, 'vcFet'), P.vcFet = 'peak'; end %peak, pca, cov
             if ~isfield(P, 'fNormFet'), P.fNormFet = 0; end %normalize feature vector
-            if ~isfield(P, 'fParfor'), P.fParfor = 1; end
+            if ~isfield(P, 'fParfor'), P.fParfor = 0; end
             if ~isfield(P, 'fPlot'), P.fPlot = 1; end
-
+            if ~isfield(P, 'viShank'), P.viShank = 1:obj.nShanks; end
+            if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fnames); end
+            if ~isfield(P, 'fAskUser'), P.fAskUser = 0; end
+            
             P.cs_fname = obj.cs_fname;
             P.animalID = obj.animalID;
             obj.vcDist = P.vcDist;
             obj.vcFet = P.vcFet;            
-            cvFet = obj.cmFet(:);
-            [viDay, viShank] = meshgrid(1:numel(obj.cs_fname), 1:obj.nShanks);
+            cvFet = obj.cmFet(P.viShank, P.viDay);
+            [viDay, viShank] = meshgrid(P.viDay, P.viShank);
             if P.fParfor
                 warning off;
                 try
@@ -508,7 +516,7 @@ classdef Animal
                     cvFet{iFet} = cluster1(cvFet{iFet}, viDay(iFet), viShank(iFet), P);
                 end
             end
-            obj.cmFet = reshape(cvFet, size(obj.cmFet));          
+            obj.cmFet(P.viShank, P.viDay) = cvFet;          
             
             if P.fPlot, obj.plotClusters(P); end
         end
@@ -517,11 +525,15 @@ classdef Animal
         function plotClusters(obj, varargin)
             P = funcInStr(varargin{:});
             if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
+            if ~isfield(P, 'fShowWaveform'), P.fShowWaveform = 1; end
+            if ~isfield(P, 'fPlot'), P.fPlot = 1; end
+            if ~isfield(P, 'viShank'), P.viShank = 1:obj.nShanks; end
+            if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fnames); end
             
             P.cs_fname = obj.cs_fname;
             P.animalID = obj.animalID;
-            cvFet = obj.cmFet(:);
-            [viDay, viShank] = meshgrid(1:numel(obj.cs_fname), 1:obj.nShanks);
+            cvFet = obj.cmFet(P.viShank, P.viDay);
+            [viDay, viShank] = meshgrid(P.viDay, P.viShank);
             
             for iFet = 1:numel(cvFet)
                 S = cvFet{iFet};
@@ -530,34 +542,41 @@ classdef Animal
                 if isempty(S.Sclu), continue; end %no clu detected
                 catch err
                     disp(lasterr)
-                end
+                end                
                 iShank = viShank(iFet);
                 iDay = viDay(iFet);
+
                 vcDate = getDateFromFullpath(obj.cs_fname{iDay});
                 P.vcTitle = sprintf('%s, %s, Shank%d', obj.animalID, vcDate, iShank);
-                
-                fig = figure('Visible', 'off');           
-                subplot(2,2,1);
-                plotScienceClu(S.Sclu);
-
-                subplot(2,2,3); 
-                figure(fig);
-                plotTetClu(S.mrPeak, 'viClu', S.Sclu.halo, 'maxAmp', ...
-                    P.maxAmp, 'vcTitle', P.vcTitle);
-
-                subplot(2,2,[2,4]); 
-                figure(fig);
-                plotWaveform(S, 'iMax', -obj.spkLim(1), 'maxAmp', P.maxAmp);
-                set(fig, 'Name', sprintf(...
-                    '%d-%d sec; 0..%d u%s; %d-%d Hz, fUseSubThresh=%d, fMeanSubt=%d', ...
-                    obj.readDuration(1), obj.readDuration(2), P.maxAmp, ...
-                    obj.vcPeak, obj.freqLim(1), obj.freqLim(2), ...
-                    obj.fUseSubThresh, obj.fMeanSubt));
-                
+                      
                 fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
-                    P.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
-                    sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
-                    nanmean(S.vrIsoDist), nanmean(S.vrIsiRatio));
+                P.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
+                sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
+                nanmean(S.vrIsoDist), nanmean(S.vrIsiRatio));
+                
+                if P.fPlot
+                    fig = figure('Visible', 'off');           
+                    subplot(2,2,1);
+                    plotScienceClu(S.Sclu);
+
+                    subplot(2,2,3); 
+                    figure(fig);
+                    plotTetClu(S.mrPeak, 'viClu', S.Sclu.halo, 'maxAmp', ...
+                        P.maxAmp, 'vcTitle', P.vcTitle);
+
+                    subplot(2,2,[2,4]); 
+                    figure(fig);
+                    if P.fShowWaveform
+                        plotWaveform(S, 'iMax', -obj.spkLim(1), 'maxAmp', P.maxAmp);
+                    end
+                    
+                    set(fig, 'Name', sprintf(...
+                        '%d-%d sec; 0..%d u%s; %d-%d Hz, fUseSubThresh=%d, fMeanSubt=%d, nInterp=%d', ...
+                        obj.readDuration(1), obj.readDuration(2), P.maxAmp, ...
+                        obj.vcPeak, obj.freqLim(1), obj.freqLim(2), ...
+                        obj.fUseSubThresh, obj.fMeanSubt, obj.nInterp));
+                end
+
                 
                 drawnow;
 %                 set(fig, 'Visible', 'on');
@@ -601,9 +620,10 @@ classdef Animal
 %                 title(sprintf('%s, t(s):%d-%d, %s', vcFilename, P.readDuration(1), P.readDuration(2), get(gcf, 'Name')));
             end
             vcTitle = sprintf(...
-                '%s; %d-%ds; 0..%d u%s; %d-%d Hz; #thresh:%d; fUseSubThresh:%d; fMeanSubt:%d', ...
-                obj.animalID, P.readDuration(1), P.readDuration(2), P.maxAmp, P.vcPeak, ...
-                P.freqLim(1), P.freqLim(2), numel(P.thresh), P.fUseSubThresh, P.fMeanSubt);
+                '%s; %d-%ds; 0..%d u%s; %d-%d Hz; #thresh:%d; fUseSubThresh:%d; fMeanSubt:%d, nInterp;%d', ...
+                obj.animalID, P.readDuration(1), P.readDuration(2), P.maxAmp, ...
+                P.vcPeak, P.freqLim(1), P.freqLim(2), numel(P.thresh), ...
+                P.fUseSubThresh, P.fMeanSubt, P.nInterp);
             if P.fPlot
                 set(gcf, 'Name', vcTitle);
                 try  tightfig; 

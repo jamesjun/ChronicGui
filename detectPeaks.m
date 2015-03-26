@@ -18,6 +18,8 @@ if ~isfield(P, 'thresh'), P.thresh = []; end %[] for QQ, scalar for fixed val, t
 if ~isfield(P, 'vcDate'), P.vcDate = ''; end
 if ~isfield(P, 'spkLim'), P.spkLim = [-8, 16]; end
 if ~isfield(P, 'fSpkWav'), P.fSpkWav = 0; end %build spike table
+if ~isfield(P, 'fCov'), P.fCov = 0; end
+if ~isfield(P, 'nInterp'), P.nInterp = 1; end
 
 % multi-shank support
 if iscell(mrData)
@@ -83,20 +85,49 @@ if viDn(end) + P.spkLim(2) > size(mrData, 1)
 end
 
 % Mark channels that crossed transitions
+if P.fSpkWav
+    trSpkWav = zeros([diff(P.spkLim)+1, nChans, nTran], 'single');
+else
+    trSpkWav = [];
+end
 mlTran = false(nChans, nTran); %if a channel crossed threshold or not
 mrMax = zeros(nChans, nTran, 'single');
 mrMin = zeros(nChans, nTran, 'single');
-miTime = zeros(nChans, nTran, 'single');
+viTime = zeros(1, nTran, 'single');
+% miTime = zeros(nChans, nTran, 'single');
+viRange0 = P.spkLim(1):P.spkLim(2);
 for iTran = 1:nTran
     viRange = viUp(iTran):viDn(iTran);
-    [mrMin(:,iTran), miTime(:,iTran)] = min(mrData(viUp(iTran):viDn(iTran), :)); 
-    mrMax(:,iTran) = max(mrData(viUp(iTran):viDn(iTran), :)); 
+    mlTran(:,iTran) = any(mlData(:,viRange)');  
+    viChanZero = find(~mlTran(:,iTran));
+    
+    [vrMin1, viTime1] = min(mrData(viRange, :));      
 %     mlTran(:,iTran) = any(bsxfun(@and, mlData(:,viRange), vlData(viRange))');
-    mlTran(:,iTran) = any(mlData(:,viRange)');
-    if ~P.fUseSubThresh
-        viChanZero = find(~mlTran(:,iTran));
+    if ~P.fUseSubThresh        
+        vrMin1(viChanZero) = 0;
+    end
+    vrMin2 = (vrMin1) .^ 2;
+    viTime(iTran) = round(sum(viTime1 .* vrMin2) ./ sum(vrMin2)) + viUp(iTran) - 1; %weighted time
+
+    viRange = viRange0 + viTime(iTran);  %update the range  
+    mrData1 = mrData(viRange, :);
+    if P.nInterp > 1
+        vrXi = viRange(1):(1/P.nInterp):viRange(end);
+        mrData1 = interp1(viRange, mrData1, vrXi, 'spline');
+    end   
+    mrMin(:,iTran) = min(mrData1);  %update value
+    mrMax(:,iTran) = max(mrData1);     
+    if P.fSpkWav
+        if P.fUseSubThresh  
+            trSpkWav(:, :, iTran) = mrData(viRange, :);
+        else
+            viChanCross = find(mlTran(:,iTran));
+            trSpkWav(:, viChanCross, iTran) = mrData(viRange, viChanCross);
+        end
+    end
+    if ~P.fUseSubThresh        
         mrMax(viChanZero, iTran) = 0;
-        mrMin(viChanZero, iTran) = 0;
+        mrMin(viChanZero, iTran) = 0;  
     end
 end
 
@@ -105,20 +136,6 @@ switch (P.vcPeak)
         mrPeak = mrMax - mrMin;
     case 'Vm'
         mrPeak = abs(mrMin);
-end
-
-% Align time for spike table
-trSpkWav = [];
-mrPeakSq = mrMin.^2; %following Masked Klustakwik paper 2015 Archive
-viTime = round(sum(mrPeakSq .* miTime) ./ sum(mrPeakSq)) + viUp - 1; %weighted time
-if P.fSpkWav
-    nSpkWav = diff(P.spkLim)+1;
-    trSpkWav = zeros([nSpkWav, nChans, nTran], 'single');
-    viRange0 = P.spkLim(1):P.spkLim(2);
-    for iTran = 1:nTran
-        viRange1 = viRange0 + viTime(iTran);
-        trSpkWav(:, :, iTran) = mrData(viRange1, :);
-    end
 end
 
 % vrTimeSd = sqrt((sum(mrPeak .* miTime.^2 ) ./ sum(mrPeak)) - vrTime.^2);
@@ -143,9 +160,13 @@ vrPosY = sum(bsxfun(@times, mrPeak, vrPosYe)) ./ vrPeak;
 
 nTets = round(nChans/4);
 
+if P.fCov, mrCov = calcCov(trSpkWav);
+else mrCov = []; end
+
 S = struct('mrPeak', mrPeak, 'vrAmp', vrAmp, 'vrTime', vrTime, ...
     'mlTran', mlTran, 'vrPosX', vrPosX, 'vrPosY', vrPosY, 'vrPeak', vrPeak, ...
-    'vrThresh', vrThresh, 'nTets', nTets, 'vcDate', P.vcDate, 'trSpkWav', trSpkWav);
+    'vrThresh', vrThresh, 'nTets', nTets, 'vcDate', P.vcDate, ...
+    'trSpkWav', trSpkWav, 'mrCov', mrCov);
 
 if P.fPlot
     switch lower(vcPlotType)

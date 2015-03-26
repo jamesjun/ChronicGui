@@ -3,10 +3,12 @@ function S = clusterScience(mrPeak, varargin)
 
 P = funcInStr(varargin{:});
 if ~isfield(P, 'vcDist'), P.vcDist = 'euclidean'; end
-if ~isfield(P, 'ginput'), P.ginput = []; end
+if ~isfield(P, 'deltamin'), P.deltamin = []; end
+if ~isfield(P, 'rhomin'), P.rhomin = []; end
 if ~isfield(P, 'fPlot'), P.fPlot = (nargout == 0); end 
 if ~isfield(P, 'fPlotMds'), P.fPlotMds = 0; end
 if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
+if ~isfield(P, 'fAskUser'), P.fAskUser = 1; end
 
 % if isempty(P.ginput), P.fPlot = 1; end
 
@@ -106,7 +108,7 @@ disp('column 2:Delta')
 %    fprintf(fid, '%6.2f %6.2f\n', rho(i),delta(i));
 % end
 
-disp('Select a rectangle enclosing cluster centers')
+% disp('Select a rectangle enclosing cluster centers')
 scrsz = get(0,'ScreenSize');
 % if P.fPlot
 %     figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
@@ -122,7 +124,7 @@ scrsz = get(0,'ScreenSize');
 
 % subplot(2,1,1)
 
-if P.fPlot
+if P.fPlot || P.fAskUser
     fig = figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
     %     uiwait(msgbox('reposition and hit ok'));
     tt=plot(rho(:),delta(:),'o','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor','k');
@@ -130,34 +132,38 @@ if P.fPlot
     xlabel ('\rho')
     ylabel ('\delta')
     set(gca, {'XScale', 'YScale'}, {'log', 'log'});
-%     axis([1e-3 1e4 1e1 1e3])
-    if isempty(P.ginput)
+%     axis([1e-3 1e4 1e1 1e3])    
+    if P.fAskUser
         uiwait(msgbox('Click outlier location'));
         figure(fig);
         [rhomin deltamin] = ginput(1);
         fprintf('rhomin: %f, deltamin: %f\n', rhomin, deltamin);    
+    else
+        [rhomin, deltamin, nclu] = guessNclu(rho, delta);
     end
 else
-    if isempty(P.ginput) %auto determine
-        viRho = ordrho(end-4:end); %10 elements
-        deltamin = mean(delta(viRho));
-        rhomin = rho(viRho(1));
+    if ~isempty(P.rhomin) && ~isempty(P.deltamin) %auto determine
+        rhomin = P.rhomin;
+        deltamin = P.deltamin; 
+    else
+%         nClu = guessNclu(rho, delta);
+        [rhomin, deltamin, nclu] = guessNclu(rho, delta);      %TODO: return index   
+%         viRho = ordrho(end-4:end); %10 elements
+%         deltamin = mean(delta(viRho));
+%         rhomin = rho(viRho(1));
 %         [rhomin, imin] = min(rho(:));
 %         deltamin = delta(imin);
     end
 end
 % uiwait(msgbox('rescale'));
-if ~isempty(P.ginput)
-    rhomin = P.ginput(1);
-    deltamin = P.ginput(2);
-end
+
 NCLUST=0;
 cl = -1 * ones(ND,1);
 % for i=1:ND
 %   cl(i)=-1;
 % end
 for i=1:ND
-  if ( (rho(i)>rhomin) && (delta(i)>deltamin))
+  if ( (rho(i)>=rhomin) && (delta(i)>=deltamin))
      NCLUST=NCLUST+1;
      cl(i)=NCLUST;
      icl(NCLUST)=i;
