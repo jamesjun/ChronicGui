@@ -1,4 +1,10 @@
 function vcDate = getDateFromFullpath(vcFullpath)
 
-[~,vcDate,~] = fileparts(vcFullpath);
-vcDate = vcDate(1:13);
+try
+    [~,vcDate,~] = fileparts(vcFullpath);
+    vcDate = vcDate(1:13);
+catch err
+    S = dir(vcFullpath);
+    vcDate = S.date;
+    vcDate = datestr(datenum(vcDate), 21);
+end

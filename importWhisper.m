@@ -3,8 +3,7 @@ function [mrWav, S, fid] = importWhisper(vcFullPath, varargin)
 % mrWav: in microvolts
 % if viChan is cell then mrWav is cell for each shank
 
-if isstruct(varargin{:}), P = varargin{1}; 
-    else P = struct(varargin{:}); end
+P = funcInStr(varargin{:});
 if ~isfield(P, 'readDuration'), P.readDuration = []; end %in sec or range
 if ~isfield(P, 'viChan'), P.viChan = []; end
 if ~isfield(P, 'fid'), P.fid = []; end
@@ -38,7 +37,11 @@ else
 end
 [mrWav, nBytesRead] = fread(fid, [S.nChans nSamples], 'int16');
 if nBytesRead < (S.nChans * nSamples)
-    error('page size less than read_duration');
+    nSamplesReq = nSamples;
+    nSamples = floor(nBytesRead/S.nChans);
+    mrWav = mrWav(S.nChans, 1:nSamples);
+    fprintf('Read less number of samples (%d) than requested (%d).\n', ...
+        nSamples, nSamplesReq);
 end
 if nargout < 3, fclose(fid); end
 

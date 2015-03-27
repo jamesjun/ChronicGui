@@ -2,9 +2,12 @@ function plotWaveform(S, varargin)
 P = funcInStr(varargin{:});
 if ~isfield(P, 'iMax'), P.iMax = 1; end
 if ~isfield(P, 'maxAmp'), P.maxAmp = maxAmp; end
-if ~isfield(P, 'nSpkMax'), P.nSpkMax = 100; end %show up to 100
+if ~isfield(P, 'nSpkMax'), P.nSpkMax = inf; end %show up to 100
 
 viClu = S.Sclu.cl;
+
+if max(viClu) == 1, return; end
+
 mrColor = [.5, .5, .5; jet(max(viClu)-1)];
 nChans = size(S.trSpkWav, 2);
 nTimeSpk = size(S.trSpkWav, 1); 
@@ -32,7 +35,7 @@ for iClu = 2:max(viClu)
 % %       mrY = reshape(S.trSpkWav(:,iChan,viCluPlot), [nTimeSpk, numel(viCluPlot)]) + iChan * P.maxAmp;
 %         mrY(:,iChan,:) = trY(:,iChan,:) + iChan * P.maxAmp;
 %     end
-    reduce_plot(vrX, mrY, 'Color', mrColor(iClu,:), 'LineWidth', .5);
+    plot(vrX, mrY, 'Color', mrColor(iClu,:), 'LineWidth', .5);
     plot(P.iMax*[1 1]+xoff+1, ylim, 'w-');
 end
 % set(gcf,'Visible','on');
