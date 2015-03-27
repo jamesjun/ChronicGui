@@ -19,7 +19,9 @@ try
     end
     S.Sclu = clusterScience(mrFet, P); 
     if P.fCleanClu
-        [S.Sclu.cl, S.trSpkWav] = cleanClu(S.trSpkWav, S.Sclu.cl, P); 
+        [S.Sclu.cl, S.trSpkWav, S.Sclu.viChanMin] = cleanClu(S.trSpkWav, S.Sclu.cl, P); 
+    else
+        S.Sclu.viChanMin = [];
     end
     if ~isempty(S.Sclu)
         S.vrIsoDist = isoDist(mrFet, S.Sclu.cl);

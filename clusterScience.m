@@ -1,75 +1,51 @@
 function S = clusterScience(mrPeak, varargin)
 %mrPeak: matrix of features
+P = funcDefStr(funcInStr(varargin{:}), ...
+    'vcDist', 'euclidean', ...
+    'deltamin', [], ...
+    'rhomin', [], ...
+    'fPlot', 0, ...
+    'fPlotMds', 0, ...
+    'vcTitle', '', ...
+    'fAskUser', 1, ...
+    'nClu', [], ...
+    'fReassign', 0, ...
+    'GaussianKernel', 1, ...
+    'fHalo', 0, ...
+    'percent', 2, ...
+    'subsample', 10); %1 in 10 subsampled
 
-P = funcInStr(varargin{:});
-if ~isfield(P, 'vcDist'), P.vcDist = 'euclidean'; end
-if ~isfield(P, 'deltamin'), P.deltamin = []; end
-if ~isfield(P, 'rhomin'), P.rhomin = []; end
-if ~isfield(P, 'fPlot'), P.fPlot = (nargout == 0); end 
-if ~isfield(P, 'fPlotMds'), P.fPlotMds = 0; end
-if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
-if ~isfield(P, 'fAskUser'), P.fAskUser = 1; end
-if ~isfield(P, 'nClu'), P.nClu = []; end
-if ~isfield(P, 'fReassign'), P.fReassign = 0; end
-if ~isfield(P, 'GaussianKernel'), P.GaussianKernel = 1; end
-if ~isfield(P, 'fHalo'), P.fHalo = 0; end
-% if isempty(P.ginput), P.fPlot = 1; end
-
-vrDist = single(pdist(mrPeak', P.vcDist))';
+P.fPlot = nargout == 0;
+dist = single(pdist(mrPeak', P.vcDist))';
 nPoints = size(mrPeak, 2);
-
-% tic
-% vrFet1 = zeros(size(vrDist));
-% vrFet2 = zeros(size(vrDist));
-% i1 = 1;
-% for i = 1:(nPoints-1)
-%     i2 = i1 + nPoints - i - 1;
-%     vrFet1(i1:i2) = i;
-%     vrFet2(i1:i2) = (i+1):nPoints;
-%     i1 = i2+1;
-% end
-% % mrFet = [vrFet1, vrFet2, vrDist];
-% toc
-
-NL = nPoints-1;
+% NL = nPoints-1;
 ND = nPoints;
+N=numel(dist);
 
-% ND=max(vrFet2);
-% NL=max(vrFet1);
-% if (NL>ND)
-%   ND=NL;
-% end
-N=numel(vrDist);
+viDist = random('unid', N, [round(N/P.subsample),1]); %random index
+sda=sort(dist(viDist), 'ascend');
+dc=sda(round(N / P.subsample * P.percent/100));
+viDist = [];
 
-dist = squareform(vrDist);
-% dist = zeros(ND, ND);
-% dist(mrFet(:,1) + (mrFet(:,2)-1)*ND) = mrFet(:,3);
-% dist = dist + dist'; %make symmetric
-% dist(sub2ind([ND, ND], mrFet(:,2), mrFet(:,1))) = mrFet(:,3);
+% sda=sort(dist(1:P.subsample:end), 'ascend');
+% dc=sda(round(N / P.subsample * P.percent/100))
 
-
-percent=2.0;
-fprintf('average percentage of neighbours (hard coded): %5.6f\n', percent);
-
-position=round(N*percent/100);
-sda=sort(vrDist);
-dc=sda(position);
-
+maxd = max(dist);
+sda = []; %free memory
+fprintf('average percentage of neighbours (hard coded): %5.6f\n', P.percent);
 fprintf('Computing Rho with gaussian kernel of radius: %12.6f\n', dc);
 
-% Gaussian kernel
-rho = zeros(ND,1, 'single');
-if P.GaussianKernel
-%     expdist2 = exp(-dist.*dist / dc^2);
-%     for i=1:ND-1
-%       j = i+1:ND;
-%       vr = expdist2(j,i);
-%       rho(i)=rho(i)+sum(vr); %faster to do this way
-%       rho(j) = rho(j) + vr; %expdist2 is symmetric
-%     end
-%     toc
-    rho = (sum(exp(-dist.*dist / dc^2))-1)*2; %(sum(expdist2)-1)/3;
+dist = squareform(dist); %to be replaced
+% dist1 = zeros(ND, 'single');
+% dist1(tril(true(ND),-1)) = dist;
+% dist1(triu(true(ND),1)) = dist;
+% dist = dist1;
+
+if P.GaussianKernel       
+    rho = (sum(exp(-dist.^2 / dc^2))-1)*2;
 else
+    rho = zeros(ND,1, 'single');
+
     for i=1:ND-1
         j = (i+1):ND;
         j = j(dist(j,i) < dc);
@@ -78,36 +54,22 @@ else
     end
 end
 
+
 % determine delta
-maxd=max(vrDist);
 [~,ordrho]=sort(rho,'descend');
 
-% 
 % tic
-% nneigh = zeros(ND,1, 'single');
-% delta = zeros(ND,1, 'single');
-% nneigh(ordrho(1))=0;
-% for ii=2:ND
-%    [delta(ordrho(ii)), imin] = min(dist(ordrho(ii),ordrho(1:ii-1)));
-%    nneigh(ordrho(ii)) = ordrho(imin);
-% end
-% delta(ordrho(1))=maxd;
-% toc
-% nneigh0 = nneigh;
-% delta0 = delta;
-
-% tic
-dist1 = dist(ordrho, ordrho);
-dist1(tril(true(ND), 0)) = inf;
-[delta, vimin] = min(dist1);
+if P.fHalo, dist0 = dist; end
+dist = dist(ordrho, ordrho); %expensive memory, so reuse
+dist(tril(true(ND), 0)) = inf;
+[delta, vimin] = min(dist);
 delta(ordrho) = delta;
 nneigh(ordrho) = ordrho(vimin);
 delta(ordrho(1)) = maxd;
 nneigh(ordrho(1))=0;
 delta=delta';
-% nneigh=nneigh';
-dist1 = []; %free memory
-% toc
+dist = []; %free memory
+if P.fHalo, dist = dist0; end
 
 % std(delta0-delta)
 % std(nneigh0-nneigh)

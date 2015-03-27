@@ -1,6 +1,8 @@
-function mrCov = calcCov(trWav)
+function mrCov = calcCov(trWav, varargin)
 vcMode = 'cov'; %cov corr prod
 % nWav = size(trWav, 1);
+P = funcDefStr(funcInStr(varargin{:}), ...
+    'nPadding', 0);
 nChans = size(trWav, 2);
 nSpk = size(trWav, 3);
 if nChans < 2, mrCov = []; return; end
@@ -10,6 +12,11 @@ viChan1 = repmat(2:nChans, [2 1]);
 viChan1 = viChan1(2:end);
 viChan2 = repmat(1:(nChans-1), [2 1]);
 viChan2 = viChan2(1:end-1);
+
+% remove padding
+if P.nPadding > 0    
+    trWav = trWav((1+P.nPadding):(end-P.nPadding), :, :);
+end
 
 mrCov = zeros([nPairs, nSpk], 'single');
 switch lower(vcMode)

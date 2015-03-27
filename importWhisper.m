@@ -39,7 +39,7 @@ end
 if nBytesRead < (S.nChans * nSamples)
     nSamplesReq = nSamples;
     nSamples = floor(nBytesRead/S.nChans);
-    mrWav = mrWav(S.nChans, 1:nSamples);
+    mrWav = mrWav(1:S.nChans, 1:nSamples);
     fprintf('Read less number of samples (%d) than requested (%d).\n', ...
         nSamples, nSamplesReq);
 end

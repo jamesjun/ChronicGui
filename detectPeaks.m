@@ -1,26 +1,15 @@
 function S = detectPeaks(mrData, varargin)
 % per each channels
-vcPlotType = 'cluster'; %raster cluster
+P = funcDefStr(funcInStr(varargin{:}), ...
+    'sRateHz', 25000, 'maxAmp', 1000, 'fPlot', 0, 'fUseSubThresh', 1, ...
+    'vcPeak', 'Vpp', 'shankOffY', 0, 'thresh', [], 'vcDate', '', ...
+    'spkLim', [-8, 16], 'fSpkWav', 0, 'fCov', 0, 'nInterp', 1, ...
+    'fKillRefrac', 0, 'nPadding', 0, ...
+    'vcPlotType', 'cluster' ... %{raster, cluster}
+    );
+spkLim1 = P.spkLim + [-1, 1] * P.nPadding;
+if nargout == 0, P.fPlot = 1; end
 nChans = size(mrData, 2);
-
-if isstruct(varargin{1})
-    P = varargin{1};
-else
-    P = struct(varargin{:});
-end
-if ~isfield(P, 'sRateHz'), P.sRateHz = 25000; end
-if ~isfield(P, 'maxAmp'), P.maxAmp = 600; end
-if ~isfield(P, 'fPlot'), P.fPlot = (nargout == 0); end
-if ~isfield(P, 'fUseSubThresh'), P.fUseSubThresh = 1; end
-if ~isfield(P, 'vcPeak'), P.vcPeak = 'Vpp'; end
-if ~isfield(P, 'shankOffY'), P.shankOffY = 0; end
-if ~isfield(P, 'thresh'), P.thresh = []; end %[] for QQ, scalar for fixed val, two-element vector for double-thresh
-if ~isfield(P, 'vcDate'), P.vcDate = ''; end
-if ~isfield(P, 'spkLim'), P.spkLim = [-8, 16]; end
-if ~isfield(P, 'fSpkWav'), P.fSpkWav = 0; end %build spike table
-if ~isfield(P, 'fCov'), P.fCov = 0; end
-if ~isfield(P, 'nInterp'), P.nInterp = 1; end
-if ~isfield(P, 'fKillRefrac'), P.fKillRefrac = 0; end
 
 % multi-shank support
 if iscell(mrData)
@@ -77,16 +66,17 @@ if ~isempty(vrThreshW)
 else
     %single threshold scheme. convolve threshold data
     mlData = bsxfun(@lt, mrData, -vrThresh)';
-    vlData = logical(conv(double(any(mlData)), [zeros(1, -P.spkLim(1)), ones(1, P.spkLim(2))], 'same'));
+    vlData = logical(conv(double(any(mlData)), ...
+        [zeros(1, -P.spkLim(1)), ones(1, P.spkLim(2))], 'same'));
     [viUp, viDn, nTran] = findTrans(vlData);
 end
 if nTran==0, S=[]; return; end
 
 % handle edge cases for spike table
-if viUp(1) + P.spkLim(1) < 1
+if viUp(1) + spkLim1(1) < 1
     viUp(1) = [];   viDn(1) = [];   nTran = nTran-1;
 end
-if viDn(end) + P.spkLim(2) > size(mrData, 1)
+if viDn(end) + spkLim1(2) > size(mrData, 1)
     viUp(end) = [];   viDn(end) = [];   nTran = nTran-1;
 end
 
@@ -102,7 +92,7 @@ end
 
 % Mark channels that crossed transitions
 if P.fSpkWav
-    trSpkWav = zeros([diff(P.spkLim)+1, nChans, nTran], 'single');
+    trSpkWav = zeros([diff(spkLim1)+1, nChans, nTran], 'single');
 else
     trSpkWav = [];
 end
@@ -112,16 +102,18 @@ mrMin = zeros(nChans, nTran, 'single');
 viTime = zeros(1, nTran);
 % miTime = zeros(nChans, nTran, 'single');
 viRange0 = P.spkLim(1):P.spkLim(2);
+viRange1 = spkLim1(1):spkLim1(2);
 if P.nInterp > 1
     viRangeInt0 = P.spkLim(1):(1/P.nInterp):P.spkLim(2);
 else
     viRangeInt0 = [];
 end
 for iTran = 1:nTran
+%     try
+    %find min
     viRange = viUp(iTran):viDn(iTran);
     mlTran(:,iTran) = any(mlData(:,viRange)');  
-    viChanZero = find(~mlTran(:,iTran));
-    
+    viChanZero = find(~mlTran(:,iTran));    
     [vrMin1, viTime1] = min(mrData(viRange, :));      
 %     mlTran(:,iTran) = any(bsxfun(@and, mlData(:,viRange), vlData(viRange))');
 %     if ~P.fUseSubThresh, vrMin1(viChanZero) = 0; end 
@@ -133,27 +125,29 @@ for iTran = 1:nTran
 
     viRange = viRange0 + viTime(iTran);  %update the range  
     mrData1 = mrData(viRange, :);
-%         try
-        if ~isempty(viRangeInt0)
-            mrData1 = interp1(viRange, mrData1, viRangeInt0 + viTime(iTran), 'spline');
-        end
-%     catch err
-%         disp(err);
-%     end
+    if ~isempty(viRangeInt0)
+        mrData1 = interp1(viRange, mrData1, ...
+            viRangeInt0 + viTime(iTran), 'spline');
+    end
     mrMin(:,iTran) = min(mrData1);  %update value
     mrMax(:,iTran) = max(mrData1);     
     if P.fSpkWav
         if P.fUseSubThresh  
-            trSpkWav(:, :, iTran) = mrData(viRange, :);
+            trSpkWav(:, :, iTran) = ...
+                mrData(viRange1 + viTime(iTran), :);
         else
             viChanCross = find(mlTran(:,iTran));
-            trSpkWav(:, viChanCross, iTran) = mrData(viRange, viChanCross);
+            trSpkWav(:, viChanCross, iTran) = ...
+                mrData(viRange1 + viTime(iTran), viChanCross);
         end
     end
     if ~P.fUseSubThresh        
         mrMax(viChanZero, iTran) = 0;
         mrMin(viChanZero, iTran) = 0;  
     end
+%     catch err
+%         disp(err)
+%     end
 end
 
 switch (P.vcPeak)
@@ -185,16 +179,17 @@ vrPosY = sum(bsxfun(@times, mrPeak, vrPosYe)) ./ vrPeak;
 
 nTets = round(nChans/4);
 
-if P.fCov, mrCov = calcCov(trSpkWav);
+if P.fCov, mrCov = calcCov(trSpkWav, P);
 else mrCov = []; end
 
 S = struct('mrPeak', mrPeak, 'vrAmp', vrAmp, 'vrTime', vrTime, ...
     'mlTran', mlTran, 'vrPosX', vrPosX, 'vrPosY', vrPosY, 'vrPeak', vrPeak, ...
     'vrThresh', vrThresh, 'nTets', nTets, 'vcDate', P.vcDate, ...
-    'trSpkWav', trSpkWav, 'mrCov', mrCov);
+    'trSpkWav', trSpkWav, 'mrCov', mrCov, 'nPadding', P.nPadding, ...
+    'spkLim', P.spkLim);
 
 if P.fPlot
-    switch lower(vcPlotType)
+    switch lower(P.vcPlotType)
         case 'raster'
         mtPeak = bsxfun(@plus, miTime, viUp) / P.sRateHz;
         CLIM = [0 P.maxAmpl];

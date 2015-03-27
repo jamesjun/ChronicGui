@@ -33,17 +33,17 @@ classdef Animal
         
         % getFet
         cmFet; %cell of cell of struct
-        viShank;
-        viDay;
-        freqLim;
-        spkLim;
-        fMeanSubt;
+        viShank; viDay;
+        freqLim; spkLim; 
         vcPeak; %feature to detect
-        fUseSubThresh;
-        vcFet;
-        vcDist;
-        maxAmp;
-        nInterp;
+        vcFet; vcDist; maxAmp; nInterp; thresh;
+        nPadding; %number of samples to pad around spkLim
+        fMeanSubt; fUseSubThresh; fCov; fSpkWav; fPlot; fParfor; fPeak; 
+        
+        % cluster
+        fCleanClu; fAskUser; fShowWaveform; 
+        SIGMA_FACTOR; fHalo; fNormFet; nclu; % clusterScience settings
+        spkRemoveZscore; % remove waveform 
     end
     
     methods
@@ -422,34 +422,41 @@ classdef Animal
             patch(repmat(vrX, [2 1]), bsxfun(@plus, vrY, [-.5; .5]), ...
                 repmat(vrC, [2 1]), 'EdgeColor', 'flat');
             set(gca, 'Color', 'k');
-            axis([0 obj.readDuration, .5 nChans1+.5]);
+            axis([obj.readDuration(1) obj.readDuration(2), .5 nChans1+.5]);
         end
         
         
         %just get features without plotting
         function obj = getFet(obj, varargin)
-            P = funcInStr(varargin{:});
-            if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fname); end
-            if ~isfield(P, 'readDuration'), P.readDuration = [0 100]; end
-            if ~isfield(P, 'freqLim'), P.freqLim = [300 3000]; end
-            if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
-            if ~isfield(P, 'fUseSubThresh'), P.fUseSubThresh = 0; end
-            if ~isfield(P, 'thresh'), P.thresh = ''; end
-            if ~isfield(P, 'fMeanSubt'), P.fMeanSubt = 1; end
-            if ~isfield(P, 'viShank'), P.viShank = 1:obj.nShanks; end
-            if ~isfield(P, 'vcPeak'), P.vcPeak = 'Vpp'; end  %or 'Vm'
-            if ~isfield(P, 'fSpkWav'), P.fSpkWav = 0; end  %or 'Vm'
-            if ~isfield(P, 'fPlot'), P.fPlot = 1; end  %or 'Vm'
-            if ~isfield(P, 'spkLim'), P.spkLim = [-8, 16]; end 
-            if ~isfield(P, 'fParfor'), P.fParfor = 1; end
-            if ~isfield(P, 'fPeak'), P.fPeak = 1; end
-%             if ~isfield(P, 'fCluster'), P.fCluster = 0; end
-
+            P = funcDefStr(funcInStr(varargin{:}), ...
+                'viDay', 1:numel(obj.cs_fname), 'freqLim', [300, 6000], ...
+                'readDuration', [0, 100], 'maxAmp', 1000, ...
+                'fUseSubThresh', 0, 'thresh', [], ...
+                'fMeanSubt', 1, 'viShank', 1:obj.nShanks, ...
+                'viShank', 1:obj.nShanks, 'vcPeak', 'Vpp', ...
+                'fSpkWav', 0, 'fPlot', 1, 'fPeak', 1, ...
+                'fPlot', 1, 'spkLim', [-8 12], 'fParfor', 1, ...
+                'nPadding', 4);
+            if numel(P.readDuration) == 1
+                P.readDuration = [0, P.readDuration(1)];
+            end
+            csFields = fieldnames(P);
+            for iField=1:numel(csFields)
+                try
+                    eval(sprintf('obj.%s = P.%s;', ...
+                        csFields{iField}, csFields{iField}));
+                catch err
+                    disp(csFields{iField});
+                end
+            end
+            
             cs_fname1 = obj.cs_fname(P.viDay);
             warning off;            
             for iDay1 = 1:numel(P.viDay) %limited by memory
-                P.vcDate = getDateFromFullpath(cs_fname1{iDay1});
-                [~,~,ext] = fileparts(cs_fname1{iDay1});
+                iDay = P.viDay(iDay1);
+                vcFname = cs_fname1{iDay1};
+                P.vcDate = getDateFromFullpath(vcFname);
+                [~,~,ext] = fileparts(vcFname);
                 switch lower(ext)
                     case '.bin'
                         fcnFileImport = @importWhisper;
@@ -458,10 +465,10 @@ classdef Animal
                         fcnFileImport = @importNlxCsc;
                         P.viChan = Animal.cvShankChanNlx(P.viShank);
                 end
-                [cmData, Sfile] = fcnFileImport(cs_fname1{iDay1}, P);
-                P.sRateHz = Sfile.sRateHz;  
-                cvFet = cell(size(P.viShank));
                 try
+                    [cmData, Sfile] = fcnFileImport(vcFname, P);
+                    P.sRateHz = Sfile.sRateHz;  
+                    cvFet = cell(size(P.viShank));
                     if P.fParfor
                         P.fPlot = 0;
                         parfor iShank1 = 1:numel(P.viShank)
@@ -474,45 +481,36 @@ classdef Animal
                         end       
                     end
                 catch err
-                    disp(err);
+                    fprintf('iDay:%d, %s\n', iDay, vcFname);
+                    disp(err);                    
                 end
+                cmData = []; %free memory
                 obj.cmFet(P.viShank, P.viDay(iDay1)) = cvFet;
             end   
-
-            % save param
-            obj.viShank = P.viShank;
-            obj.viDay = P.viDay;
-            obj.freqLim = P.freqLim;
-            obj.spkLim = P.spkLim;
-            obj.fMeanSubt = P.fMeanSubt;
-            obj.readDuration = P.readDuration;
-            obj.vcPeak = P.vcPeak;
-            obj.fUseSubThresh = P.fUseSubThresh;
-            obj.maxAmp = P.maxAmp;
-            obj.nInterp = P.nInterp;
         end %getfet
         
         
         % use plotCluster for plotting
         function obj = cluster(obj, varargin)
-            P = funcInStr(varargin{:});
-            if ~isfield(P, 'vcDist'), P.vcDist = 'euclidean'; end
-            if ~isfield(P, 'maxAmp'), P.maxAmp = 1000; end
-            if ~isfield(P, 'vcFet'), P.vcFet = 'peak'; end %peak, pca, cov
-            if ~isfield(P, 'fNormFet'), P.fNormFet = 0; end %normalize feature vector
-            if ~isfield(P, 'fParfor'), P.fParfor = 0; end
-            if ~isfield(P, 'fPlot'), P.fPlot = 1; end
-            if ~isfield(P, 'viShank'), P.viShank = 1:obj.nShanks; end
-            if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fname); end
-            if ~isfield(P, 'fAskUser'), P.fAskUser = 0; end
-            if ~isfield(P, 'nclu'), P.nclu = []; end
-            if ~isfield(P, 'fCleanClu'), P.fCleanClu = 1; end
-            if ~isfield(P, 'spkLim'), P.spkLim = obj.spkLim; end
+            P = funcDefStr(funcInStr(varargin{:}), ...
+                'vcDist', 'euclidean', 'maxAmp', 1000, ...
+                'vcFet', 'peak', 'fNormFet', 0, ...
+                'fParfor', 0, 'fPlot', 1, 'viShank', obj.viShank, ...
+                'viDay', obj.viDay, ...
+                'fAskUser', 0, 'nclu', [], 'fCleanClu', 1, ...
+                'spkLim', obj.spkLim, 'cs_fname', obj.cs_fname, ...
+                'animalID', obj.animalID, 'nPadding', obj.nPadding, ...
+                'spkRemoveZscore', []);
+            csFields = fieldnames(P);
+            for iField=1:numel(csFields)
+                try
+                eval(sprintf('obj.%s = P.%s;', ...
+                    csFields{iField}, csFields{iField}));
+                catch
+                    disp(csFields{iField});
+                end
+            end     
             
-            P.cs_fname = obj.cs_fname;
-            P.animalID = obj.animalID;
-            obj.vcDist = P.vcDist;
-            obj.vcFet = P.vcFet;            
             cvFet = obj.cmFet(P.viShank, P.viDay);
             [viDay, viShank] = meshgrid(P.viDay, P.viShank);
             if P.fParfor
@@ -578,15 +576,12 @@ classdef Animal
         
                 
         function plotClusters(obj, varargin)
-            P = funcInStr(varargin{:});
-            if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
-            if ~isfield(P, 'fShowWaveform'), P.fShowWaveform = 1; end
-            if ~isfield(P, 'fPlot'), P.fPlot = 1; end
-            if ~isfield(P, 'viShank'), P.viShank = 1:obj.nShanks; end
-            if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fname); end
+            P = funcDefStr(funcInStr(varargin{:}), ...
+                'maxAmp', 1000, 'fShowWaveform', 1, 'fPlot', 1, ...
+                'viShank', 1:obj.nShanks, 'viDay', 1:numel(obj.cs_fname), ...
+                'cs_fname', obj.cs_fname, 'animalID', obj.animalID, ...
+                'nPadding', obj.nPadding, 'spkLim', obj.spkLim);
             
-            P.cs_fname = obj.cs_fname;
-            P.animalID = obj.animalID;
             cvFet = obj.cmFet(P.viShank, P.viDay);
             [viDay, viShank] = meshgrid(P.viDay, P.viShank);
             
@@ -605,9 +600,10 @@ classdef Animal
                     obj.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
                     sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
                     nanmean(S.vrIsoDist(2:end)), nanmean(S.vrIsiRatio(2:end)));
-                
+
                 if P.fPlot
-                    fig = figure('Visible', 'off', 'Position', get(0, 'ScreenSize'));     
+                    fig = figure('Visible', 'off', 'Position', ...
+                        round(get(0, 'ScreenSize')*.8));     
                     if P.fShowWaveform
                         subplot(3,2,1);
                         plotScienceClu(S.Sclu);
@@ -622,7 +618,7 @@ classdef Animal
 
                         subplot(3,2,[2,4,6]); 
                         figure(fig);                    
-                        plotWaveform(S, 'iMax', -obj.spkLim(1), 'maxAmp', P.maxAmp);
+                        plotWaveform(S, P);
                     else
                         subplot(2,2,1);
                         plotScienceClu(S.Sclu);
@@ -644,8 +640,6 @@ classdef Animal
                         obj.vcDist));
                     set(fig, 'Visible', 'on');
                 end %fPlot
-
-                
                 drawnow;
 %                 set(fig, 'Visible', 'on');
 %                 drawnow;
@@ -657,7 +651,7 @@ classdef Animal
         function [cS, vcTitle] = plotClusters1(obj, varargin)
             P = funcInStr(varargin{:});
             if ~isfield(P, 'viDay'), P.viDay = 1:numel(obj.cs_fname); end
-            if ~isfield(P, 'readDuration'), P.readDuration = [0 100]; end
+            if ~isfield(P, 'readDuration'), P.readDuration = [0, 100]; end
             if ~isfield(P, 'freqLim'), P.freqLim = [300 3000]; end
             if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
             if ~isfield(P, 'fUseSubThresh'), P.fUseSubThresh = 0; end
