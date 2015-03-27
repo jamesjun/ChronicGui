@@ -10,7 +10,6 @@ viClu(viClu==1) = [];
 
 % mrFetOut = mrFet(viClu>1, :);
 for iClu=2:nClu
-    try
     vlSpkIn = (viClu == iClu);
     nSpkIn = sum(vlSpkIn);
 %     nSpkOut = nSpk - nSpkIn;
@@ -19,8 +18,6 @@ for iClu=2:nClu
 %     mIn = m(vlSpkIn);
 %     mOut = m(~vlSpkIn);
 	sOut = sort(m(~vlSpkIn));
+    if nSpkIn > numel(sOut), continue; end
 	vrDist(iClu) = sOut(nSpkIn);
-    catch
-        continue;
-    end
 end

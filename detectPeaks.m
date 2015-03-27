@@ -109,9 +109,14 @@ end
 mlTran = false(nChans, nTran); %if a channel crossed threshold or not
 mrMax = zeros(nChans, nTran, 'single');
 mrMin = zeros(nChans, nTran, 'single');
-viTime = zeros(1, nTran, 'single');
+viTime = zeros(1, nTran);
 % miTime = zeros(nChans, nTran, 'single');
 viRange0 = P.spkLim(1):P.spkLim(2);
+if P.nInterp > 1
+    viRangeInt0 = P.spkLim(1):(1/P.nInterp):P.spkLim(2);
+else
+    viRangeInt0 = [];
+end
 for iTran = 1:nTran
     viRange = viUp(iTran):viDn(iTran);
     mlTran(:,iTran) = any(mlData(:,viRange)');  
@@ -128,10 +133,13 @@ for iTran = 1:nTran
 
     viRange = viRange0 + viTime(iTran);  %update the range  
     mrData1 = mrData(viRange, :);
-    if P.nInterp > 1
-        vrXi = viRange(1):(1/P.nInterp):viRange(end);
-        mrData1 = interp1(viRange, mrData1, vrXi, 'spline');
-    end   
+%         try
+        if ~isempty(viRangeInt0)
+            mrData1 = interp1(viRange, mrData1, viRangeInt0 + viTime(iTran), 'spline');
+        end
+%     catch err
+%         disp(err);
+%     end
     mrMin(:,iTran) = min(mrData1);  %update value
     mrMax(:,iTran) = max(mrData1);     
     if P.fSpkWav

@@ -1,17 +1,18 @@
 % %% single day plot. only plot shank 1 & 2
 
-fParfor = 1;
+fParfor = 0;
 tOffset = 0;
-tDuration = 90;
-viDay = [1:4:21];
+tDuration = 900;
+viDay = [1:21];
 viShank = 1:4;
 freqLim = [300 6000];
 vcAnimal = 'ANM282996';
 fSave = 1;
+% spkLim = [-12, 16];
 spkLim = [-8, 12];
 
 %%
-% viDay = 1; viShank = 1; fParfor = 0; fSave = 0;
+% viDay = 21; viShank = 1; fParfor = 0; fSave = 0;
 
 obj = Animal(vcAnimal);
 tic
@@ -32,5 +33,5 @@ if fSave
 end
 %24 sec for 120 sec data
 %%
-obj.plotClusters('viDay', viDay, 'viShank', 1, 'maxAmp', 1000, 'fShowWaveform', 1);
+% obj.plotClusters('viDay', viDay, 'viShank', 1, 'maxAmp', 1000, 'fShowWaveform', 1);
 obj.plotBarClu();

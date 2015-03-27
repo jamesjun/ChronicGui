@@ -461,16 +461,20 @@ classdef Animal
                 [cmData, Sfile] = fcnFileImport(cs_fname1{iDay1}, P);
                 P.sRateHz = Sfile.sRateHz;  
                 cvFet = cell(size(P.viShank));
-                if P.fParfor
-                    P.fPlot = 0;
-                    parfor iShank1 = 1:numel(P.viShank)
-                        cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
-                    end      
-                else
-                    if P.fPlot, figure; end
-                    for iShank1 = 1:numel(P.viShank)       
-                        cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
-                    end       
+                try
+                    if P.fParfor
+                        P.fPlot = 0;
+                        parfor iShank1 = 1:numel(P.viShank)
+                            cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
+                        end      
+                    else
+                        if P.fPlot, figure; end
+                        for iShank1 = 1:numel(P.viShank)       
+                            cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
+                        end       
+                    end
+                catch err
+                    disp(err);
                 end
                 obj.cmFet(P.viShank, P.viDay(iDay1)) = cvFet;
             end   
@@ -553,6 +557,15 @@ classdef Animal
                 iDay = viDay(iFet);
                 viClu = S.Sclu.cl;
                 mrBar(iShank, iDay) = max(viClu)-1;
+                
+                fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
+                    obj.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
+                    sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
+                    nanmean(S.vrIsoDist(2:end)), nanmean(S.vrIsiRatio(2:end)));
+                disp('Iso Dist:');
+                disp(S.vrIsoDist(:)');
+                disp('ISI Ratio:');
+                disp(S.vrIsiRatio(:)');
             end
             figure; bar(mrBar', 1, 'stacked');
             xlabel('Day #');
@@ -560,7 +573,7 @@ classdef Animal
             title(sprintf(...
                 '%s; %d-%d s; %d-%d Hz', ...
                 obj.animalID, obj.readDuration(1), obj.readDuration(2), ...
-                obj.freqLim(1), obj.freqLim(2)));
+                obj.freqLim(1), obj.freqLim(2)));                        
         end
         
                 
@@ -589,9 +602,9 @@ classdef Animal
                 P.vcTitle = sprintf('%s, %s, Shank%d', obj.animalID, vcDate, iShank);
                       
                 fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
-                P.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
-                sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
-                nanmean(S.vrIsoDist(2:end-1)), nanmean(S.vrIsiRatio(2:end)));
+                    obj.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
+                    sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
+                    nanmean(S.vrIsoDist(2:end)), nanmean(S.vrIsiRatio(2:end)));
                 
                 if P.fPlot
                     fig = figure('Visible', 'off', 'Position', get(0, 'ScreenSize'));     
