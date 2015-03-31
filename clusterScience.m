@@ -1,4 +1,4 @@
-function S = clusterScience(mrPeak, varargin)
+function Sclu = clusterScience(mrPeak, varargin)
 %mrPeak: matrix of features
 P = funcDefStr(funcInStr(varargin{:}), ...
     'vcDist', 'euclidean', ...
@@ -7,7 +7,7 @@ P = funcDefStr(funcInStr(varargin{:}), ...
     'fPlot', 0, ...
     'fPlotMds', 0, ...
     'vcTitle', '', ...
-    'fAskUser', 1, ...
+    'fAskUser', 0, ...
     'nClu', [], ...
     'fReassign', 0, ...
     'GaussianKernel', 1, ...
@@ -36,13 +36,9 @@ fprintf('average percentage of neighbours (hard coded): %5.6f\n', P.percent);
 fprintf('Computing Rho with gaussian kernel of radius: %12.6f\n', dc);
 
 dist = squareform(dist); %to be replaced
-% dist1 = zeros(ND, 'single');
-% dist1(tril(true(ND),-1)) = dist;
-% dist1(triu(true(ND),1)) = dist;
-% dist = dist1;
 
 if P.GaussianKernel       
-    rho = (sum(exp(-dist.^2 / dc^2))-1)*2;
+    rho = (sum(exp(-dist.^2 / dc^2))'-1)*2;
 else
     rho = zeros(ND,1, 'single');
 
@@ -64,6 +60,7 @@ dist = dist(ordrho, ordrho); %expensive memory, so reuse
 dist(tril(true(ND), 0)) = inf;
 [delta, vimin] = min(dist);
 delta(ordrho) = delta;
+nneigh = zeros(size(rho), 'single');
 nneigh(ordrho) = ordrho(vimin);
 delta(ordrho(1)) = maxd;
 nneigh(ordrho(1))=0;
@@ -71,82 +68,33 @@ delta=delta';
 dist = []; %free memory
 if P.fHalo, dist = dist0; end
 
-% std(delta0-delta)
-% std(nneigh0-nneigh)
-% figure; plot(delta0, delta, '.');
-% figure; plot(nneigh0, nneigh, '.');
-
-% 
-% tic
-% dist1 = dist(ordrho, ordrho);
-% dist1(tril(true(ND),0)) = inf;
-% [delta1, nneigh1] = min(dist1);
-% delta1(ordrho) = delta1;
-% nneigh1(ordrho) = nneigh1;
-% % delta1(ordrho(1))=-1.;
-% nneigh1(ordrho(1))=0;
-% delta1(ordrho(1))=max(delta1(:));
-% toc
-
-% disp('Generated file:DECISION GRAPH')
-% disp('column 1:Density')
-% disp('column 2:Delta')
-
-% fid = fopen('DECISION_GRAPH', 'w');
-% for i=1:ND
-%    fprintf(fid, '%6.2f %6.2f\n', rho(i),delta(i));
-% end
-
-% disp('Select a rectangle enclosing cluster centers')
-% scrsz = get(0,'ScreenSize');
-% if P.fPlot
-%     figure('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
-% end
-% ind = 1:ND;
-%gamma = rho .* delta;
-% for i=1:ND
-%   ind(i)=i;
-%   gamma(i)=rho(i)*delta(i);
-% end
-
-% if nargout > 0, return; end
-
-% subplot(2,1,1)
-
-if P.fPlot || P.fAskUser
-    fig = figure; %('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
-    %     uiwait(msgbox('reposition and hit ok'));
-    tt=plot(rho(:),delta(:),'o','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor','k');
-    title(P.vcTitle)
-    xlabel ('\rho')
-    ylabel ('\delta')
-    set(gca, {'XScale', 'YScale'}, {'log', 'log'});
-%     axis([1e-3 1e4 1e1 1e3])    
-    if P.fAskUser
-        uiwait(msgbox('Click outlier location'));
-        figure(fig);
-        [P.rhomin, P.deltamin] = ginput(1);
-        fprintf('rhomin: %f, deltamin: %f\n', P.rhomin, P.deltamin);    
-    end
-end
-% else
-%     if ~isempty(P.rhomin) && ~isempty(P.deltamin) %auto determine
-%         rhomin = P.rhomin;
-%         deltamin = P.deltamin; 
-%     else
-% %         nClu = guessNclu(rho, delta);
-%         [rhomin, deltamin, nclu] = guessNclu(rho, delta, P.nclu);      %TODO: return index   
-% %         viRho = ordrho(end-4:end); %10 elements
-% %         deltamin = mean(delta(viRho));
-% %         rhomin = rho(viRho(1));
-% %         [rhomin, imin] = min(rho(:));
-% %         deltamin = delta(imin);
+% if P.fPlot || P.fAskUser
+%     fig = figure; %('Position',[6 72 scrsz(3)/4. scrsz(4)/1.3]);
+%     %     uiwait(msgbox('reposition and hit ok'));
+%     tt=plot(rho(:),delta(:),'o','MarkerSize',5,'MarkerFaceColor','k','MarkerEdgeColor','k');
+%     title(P.vcTitle)
+%     xlabel ('\rho')
+%     ylabel ('\delta')
+%     set(gca, {'XScale', 'YScale'}, {'log', 'log'});
+% %     axis([1e-3 1e4 1e1 1e3])    
+%     if P.fAskUser
+%         uiwait(msgbox('Click outlier location'));
+%         figure(fig);
+%         [P.rhomin, P.deltamin] = ginput(1);
+%         fprintf('rhomin: %f, deltamin: %f\n', P.rhomin, P.deltamin);    
 %     end
+% end
+
+Sclu = struct('rho', rho, 'delta', delta,'ordrho', ordrho, 'nneigh', nneigh);
 
 % uiwait(msgbox('rescale'));
 if isempty(P.rhomin) || isempty(P.deltamin)
-    [cl, icl, NCLUST] = guessNclu(rho, delta, P);
+    Sclu = guessNclu(Sclu, P);
+    cl = Sclu.cl;
+    icl = Sclu.icl;
+    NCLUST = Sclu.nClu;
 else
+    % if rhomin and deltamin is given
     NCLUST=0;
     cl = -1 * ones(ND,1);
     for i=1:ND
@@ -156,23 +104,24 @@ else
          icl(NCLUST)=i;
       end
     end 
+    fprintf('NUMBER OF CLUSTERS: %i \n', NCLUST);
+    disp('Performing assignation')
+
+    if NCLUST == 0
+        Sclu = [];
+        return; 
+    end
+
+    %assignation
+    for i=1:ND
+      if (cl(ordrho(i))==-1)
+        cl(ordrho(i))=cl(nneigh(ordrho(i)));
+      end
+    end
+    Sclu.cl = cl;
+    Sclu.icl = icl;
+    Sclu.nClu = NCLUST;
 end
-
-fprintf('NUMBER OF CLUSTERS: %i \n', NCLUST);
-disp('Performing assignation')
-
-if NCLUST == 0
-    S = [];
-    return; 
-end
-
-%assignation
-for i=1:ND
-  if (cl(ordrho(i))==-1)
-    cl(ordrho(i))=cl(nneigh(ordrho(i)));
-  end
-end
-
 
 
 %halo
@@ -195,7 +144,9 @@ if P.fHalo
 else
     halo = [];
 end
+Sclu.halo = halo;
 
+% status report
 for iClu=1:NCLUST
   nc = sum(cl==iClu);
   if ~isempty(halo)
@@ -231,24 +182,6 @@ if P.fPlotMds
     end
 end
 
-%for i=1:ND
-%   if (halo(i)>0)
-%      ic=int8((halo(i)*64.)/(NCLUST*1.));
-%      hold on
-%      plot(Y1(i,1),Y1(i,2),'o','MarkerSize',2,'MarkerFaceColor',cmap(ic,:),'MarkerEdgeColor',cmap(ic,:));
-%   end
-%end
-% faa = fopen('CLUSTER_ASSIGNATION', 'w');
-% disp('Generated file:CLUSTER_ASSIGNATION')
-% disp('column 1:element id')
-% disp('column 2:cluster assignation without halo control')
-% disp('column 3:cluster assignation with halo control')
-
-% mrClu = [(1:ND)', cl(:), halo(:)];
-% for i=1:ND
-%    fprintf(faa, '%i %i %i\n',i,cl(i),halo(i));
-% end
-
 % reassignment by size of elements per clusters
 if P.fReassign
     viClu = 1:max(cl);
@@ -271,4 +204,3 @@ if P.fPlot
     end
 end
 
-S = struct('rho', rho, 'delta', delta, 'cl', cl, 'halo', halo, 'icl', icl);

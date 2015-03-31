@@ -5,8 +5,7 @@ P = funcDefStr(funcInStr(varargin{:}), ...
     'vcPeak', 'Vpp', 'shankOffY', 0, 'thresh', [], 'vcDate', '', ...
     'spkLim', [-8, 16], 'fSpkWav', 0, 'fCov', 0, 'nInterp', 1, ...
     'fKillRefrac', 0, 'nPadding', 0, ...
-    'vcPlotType', 'cluster' ... %{raster, cluster}
-    );
+    'vcPlotType', 'cluster', 'keepFraction', 1);
 spkLim1 = P.spkLim + [-1, 1] * P.nPadding;
 if nargout == 0, P.fPlot = 1; end
 nChans = size(mrData, 2);
@@ -157,6 +156,15 @@ switch (P.vcPeak)
         mrPeak = abs(mrMin);
 end
 
+if P.keepFraction < 1
+    vrFet = sum(mrPeak.^2);
+    viFet1 = find(vrFet > quantile(vrFet, 1-P.keepFraction)); %debug
+    mrPeak = mrPeak(:, viFet1);
+    mrMin = mrMin(:, viFet1);
+    trSpkWav = trSpkWav(:, :, viFet1);
+    viTime = viTime(viFet1);
+end
+
 % vrTimeSd = sqrt((sum(mrPeak .* miTime.^2 ) ./ sum(mrPeak)) - vrTime.^2);
 vrTime = viTime  / P.sRateHz;
 % vrTimeSd = vrTimeSd  / P.sRateHz;
@@ -186,7 +194,7 @@ S = struct('mrPeak', mrPeak, 'vrAmp', vrAmp, 'vrTime', vrTime, ...
     'mlTran', mlTran, 'vrPosX', vrPosX, 'vrPosY', vrPosY, 'vrPeak', vrPeak, ...
     'vrThresh', vrThresh, 'nTets', nTets, 'vcDate', P.vcDate, ...
     'trSpkWav', trSpkWav, 'mrCov', mrCov, 'nPadding', P.nPadding, ...
-    'spkLim', P.spkLim);
+    'spkLim', P.spkLim, 'Sclu', [], 'mrMin', mrMin);
 
 if P.fPlot
     switch lower(P.vcPlotType)
@@ -209,30 +217,31 @@ if P.fPlot
         %axis([0 obj.readDuration, .5 nChans1+.5]);
         
         
-        case 'cluster'            
-        if nChans == 11, viTetChOff = [0 4 7];
-        else viTetChOff = 0:4:nChans-4;
-        end
-        nTets = numel(viTetChOff);
-        mrTet = [1 1 1 2 2 3; 2 3 4 3 4 4];
-        nPairs = size(mrTet,2);
-        set(gca, {'Color', 'XTick', 'YTick'}, {'k',[],[]});
-        axis equal;
-        hold on;
-        for iTet = nTets:-1:1
-           for iPair = 1:nPairs
-                ch1 = mrTet(1, iPair) + viTetChOff(iTet);
-                ch2 = mrTet(2, iPair) + viTetChOff(iTet);
-                vrX1 = linmap(mrPeak(ch2,:), [0 P.maxAmp], [0 1]) + (iPair-1);
-                vrY1 = linmap(mrPeak(ch1,:), [0 P.maxAmp], [0 1]) + (iTet-1) + P.shankOffY;          
-                plot(vrX1, vrY1, 'w.', 'MarkerSize', 1);
-                plot([0 0 1 1 0]+iPair-1, [0 1 1 0 0]+iTet-1 + P.shankOffY, 'w');
-           end
-        end        
-        set(gcf, 'Name', sprintf('%s:%duV, Thresh:%s', P.vcPeak, P.maxAmp, vcThresh));
-%         title(sprintf('%s:0..%d, Thresh:%s', vcPlot, maxamp, vcThresh));
-        axis([0, nPairs, 0, nTets + P.shankOffY]);
-        plot([0 0 1 1 0]*nPairs, [0 1 1 0 0]*nTets + P.shankOffY, 'w', 'LineWidth', 2);
-%         try tightfig; catch; disp(lasterr); end
+        case 'cluster'      
+        plotTetClu(mrPeak, P);
+%         if nChans == 11, viTetChOff = [0 4 7];
+%         else viTetChOff = 0:4:nChans-4;
+%         end
+%         nTets = numel(viTetChOff);
+%         mrTet = [1 1 1 2 2 3; 2 3 4 3 4 4];
+%         nPairs = size(mrTet,2);
+%         set(gca, {'Color', 'XTick', 'YTick'}, {'k',[],[]});
+%         axis equal;
+%         hold on;
+%         for iTet = nTets:-1:1
+%            for iPair = 1:nPairs
+%                 ch1 = mrTet(1, iPair) + viTetChOff(iTet);
+%                 ch2 = mrTet(2, iPair) + viTetChOff(iTet);
+%                 vrX1 = linmap(mrPeak(ch2,:), [0 P.maxAmp], [0 1]) + (iPair-1);
+%                 vrY1 = linmap(mrPeak(ch1,:), [0 P.maxAmp], [0 1]) + (iTet-1) + P.shankOffY;          
+%                 plot(vrX1, vrY1, 'w.', 'MarkerSize', 1);
+%                 plot([0 0 1 1 0]+iPair-1, [0 1 1 0 0]+iTet-1 + P.shankOffY, 'w');
+%            end
+%         end        
+%         set(gcf, 'Name', sprintf('%s:%duV, Thresh:%s', P.vcPeak, P.maxAmp, vcThresh));
+% %         title(sprintf('%s:0..%d, Thresh:%s', vcPlot, maxamp, vcThresh));
+%         axis([0, nPairs, 0, nTets + P.shankOffY]);
+%         plot([0 0 1 1 0]*nPairs, [0 1 1 0 0]*nTets + P.shankOffY, 'w', 'LineWidth', 2);
+% %         try tightfig; catch; disp(lasterr); end
     end %switch
 end %if

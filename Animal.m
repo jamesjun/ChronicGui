@@ -16,7 +16,6 @@ classdef Animal
         cvShankChan; %bottom-up order, left-right alternate
         cvShankImp;
         vnChanOffset = []; %offset of channels per file
-        filterFreq = [300 3000];
         impedance;
         nShanks;
         nChans = 64;
@@ -33,17 +32,37 @@ classdef Animal
         
         % getFet
         cmFet; %cell of cell of struct
-        viShank; viDay;
-        freqLim; spkLim; 
-        vcPeak; %feature to detect
-        vcFet; vcDist; maxAmp; nInterp; thresh;
-        nPadding; %number of samples to pad around spkLim
-        fMeanSubt; fUseSubThresh; fCov; fSpkWav; fPlot; fParfor; fPeak; 
+        viShank; 
+        viDay;        
+        freqLim = [300, 3000]; 
+        spkLim = [-8, 12]; 
+        vcPeak = 'Vpp'; %feature to detect
+        vcFet = 'peak'; 
+        vcDist = 'euclidean'; 
+        maxAmp = 1000; % in uV
+        nInterp = 4; 
+        thresh = [2 4]; %2 and 4 SD
+        nPadding = 4; %number of samples to pad around spkLim
+        fMeanSubt = 1; 
+        fUseSubThresh = 1; 
+        fCov = 0; 
+        fSpkWav = 1; 
+        fPlot = 1; 
+        fParfor = 1; 
+        fPeak = 1; 
+        keepFraction = .5;
         
         % cluster
-        fCleanClu; fAskUser; fShowWaveform; 
-        SIGMA_FACTOR; fHalo; fNormFet; nclu; % clusterScience settings
-        spkRemoveZscore; % remove waveform 
+        fCleanClu = 1; 
+%         fAskUser = 0; 
+        fShowWaveform; 
+        SIGMA_FACTOR = 5; 
+        fHalo = 0; 
+        fNormFet = 0; 
+        nClu; % clusterScience settings
+        spkRemoveZscore = 3; % remove waveform 
+        cluFraction = 1; %keep all clus
+        funcFet = [];
     end
     
     methods
@@ -334,7 +353,7 @@ classdef Animal
                         fprintf('Loaded %s\n', vcFname); 
 
                         % Process file
-                        [vrFiltB, vrFiltA] = butter(4, obj.filterFreq / Sfile.sRateHz * 2,'bandpass');
+                        [vrFiltB, vrFiltA] = butter(4, obj.freqLim / Sfile.sRateHz * 2,'bandpass');
                         mrData = filter(vrFiltB, vrFiltA, mrData); %filter data
                         for iShank=1:obj.nShanks
                             viChan = obj.cvShankChan{iShank} + obj.vnChanOffset(iDay);
@@ -426,28 +445,39 @@ classdef Animal
         end
         
         
-        %just get features without plotting
-        function obj = getFet(obj, varargin)
-            P = funcDefStr(funcInStr(varargin{:}), ...
-                'viDay', 1:numel(obj.cs_fname), 'freqLim', [300, 6000], ...
-                'readDuration', [0, 100], 'maxAmp', 1000, ...
-                'fUseSubThresh', 0, 'thresh', [], ...
-                'fMeanSubt', 1, 'viShank', 1:obj.nShanks, ...
-                'viShank', 1:obj.nShanks, 'vcPeak', 'Vpp', ...
-                'fSpkWav', 0, 'fPlot', 1, 'fPeak', 1, ...
-                'fPlot', 1, 'spkLim', [-8 12], 'fParfor', 1, ...
-                'nPadding', 4);
-            if numel(P.readDuration) == 1
-                P.readDuration = [0, P.readDuration(1)];
-            end
+        function [obj, P] = setFields(obj, varargin)
+            P = funcInStr(varargin{:});
             csFields = fieldnames(P);
             for iField=1:numel(csFields)
                 try
                     eval(sprintf('obj.%s = P.%s;', ...
                         csFields{iField}, csFields{iField}));
                 catch err
+                    disp('setFields, P->obj');
                     disp(csFields{iField});
                 end
+            end
+            if nargout >= 2
+                csFields = fieldnames(obj);
+                for iField=1:numel(csFields)
+                    try
+                        eval(sprintf('P.%s = obj.%s;', ...
+                            csFields{iField}, csFields{iField}));
+                    catch err
+                        disp('setFields, obj->P');
+                        disp(csFields{iField});
+                    end
+                end
+            end
+        end
+        
+        
+        %just get features without plotting
+        function obj = getFet(obj, varargin)
+            [obj, P] = obj.setFields(varargin{:});
+            if numel(obj.readDuration) == 1
+                obj.readDuration = [0, P.readDuration(1)];    
+                P.readDuration = readDuration;
             end
             
             cs_fname1 = obj.cs_fname(P.viDay);
@@ -473,11 +503,13 @@ classdef Animal
                         P.fPlot = 0;
                         parfor iShank1 = 1:numel(P.viShank)
                             cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
+                            cvFet{iShank1} = cluster1(cvFet{iShank1}, iDay, P.viShank(iShank1), P);
                         end      
                     else
                         if P.fPlot, figure; end
                         for iShank1 = 1:numel(P.viShank)       
                             cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
+                            cvFet{iShank1} = cluster1(cvFet{iShank1}, iDay, P.viShank(iShank1), P);
                         end       
                     end
                 catch err
@@ -487,52 +519,34 @@ classdef Animal
                 cmData = []; %free memory
                 obj.cmFet(P.viShank, P.viDay(iDay1)) = cvFet;
             end   
+            
+            if P.fPlot && P.fCluster
+                obj.plotClusters('fShowWaveform', 1); 
+            end         
         end %getfet
         
         
         % use plotCluster for plotting
         function obj = cluster(obj, varargin)
-            P = funcDefStr(funcInStr(varargin{:}), ...
-                'vcDist', 'euclidean', 'maxAmp', 1000, ...
-                'vcFet', 'peak', 'fNormFet', 0, ...
-                'fParfor', 0, 'fPlot', 1, 'viShank', obj.viShank, ...
-                'viDay', obj.viDay, ...
-                'fAskUser', 0, 'nclu', [], 'fCleanClu', 1, ...
-                'spkLim', obj.spkLim, 'cs_fname', obj.cs_fname, ...
-                'animalID', obj.animalID, 'nPadding', obj.nPadding, ...
-                'spkRemoveZscore', []);
-            csFields = fieldnames(P);
-            for iField=1:numel(csFields)
-                try
-                eval(sprintf('obj.%s = P.%s;', ...
-                    csFields{iField}, csFields{iField}));
-                catch
-                    disp(csFields{iField});
-                end
-            end     
+            [obj, P] = obj.setFields(varargin{:});
             
-            cvFet = obj.cmFet(P.viShank, P.viDay);
-            [viDay, viShank] = meshgrid(P.viDay, P.viShank);
-            if P.fParfor
-                warning off;
-                try
-                    parfor iFet = 1:numel(cvFet) %PCA only
-                        cvFet{iFet} = cluster1(cvFet{iFet}, viDay(iFet), viShank(iFet), P);
-                    end
-                catch err
-                    disp('Parfor failed. Trying for-loop instead');
-                    for iFet = 1:numel(cvFet)
-                        cvFet{iFet} = cluster1(cvFet{iFet}, viDay(iFet), viShank(iFet), P);
-                    end
+            cvFet = obj.cmFet(obj.viShank, obj.viDay);
+            [viDay, viShank] = meshgrid(obj.viDay, obj.viShank);
+            warning off;
+            if obj.fParfor
+                parfor iFet = 1:numel(cvFet) %PCA only
+                    cvFet{iFet} = ...
+                        cluster1(cvFet{iFet}, viDay(iFet), viShank(iFet), P);
                 end
             else
                 for iFet = 1:numel(cvFet)
-                    cvFet{iFet} = cluster1(cvFet{iFet}, viDay(iFet), viShank(iFet), P);
+                    cvFet{iFet} = ...
+                        cluster1(cvFet{iFet}, viDay(iFet), viShank(iFet), P);
                 end
             end
-            obj.cmFet(P.viShank, P.viDay) = cvFet;          
+            obj.cmFet(obj.viShank, obj.viDay) = cvFet;          
             
-            if P.fPlot, obj.plotClusters(P); end
+            if obj.fPlot, obj.plotClusters(); end
         end
          
         
@@ -550,20 +564,20 @@ classdef Animal
             for iFet = 1:numel(cvFet)
                 S = cvFet{iFet};
                 if isempty(S), continue; end
+                if ~isfield(S, 'Sclu'), continue; end
                 if isempty(S.Sclu), continue; end %no clu detected             
                 iShank = viShank(iFet);
                 iDay = viDay(iFet);
                 viClu = S.Sclu.cl;
                 mrBar(iShank, iDay) = max(viClu)-1;
-                
                 fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
                     obj.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
                     sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
-                    nanmean(S.vrIsoDist(2:end)), nanmean(S.vrIsiRatio(2:end)));
+                    nanmean(S.Sclu.vrIsoDist(2:end)), nanmean(S.Sclu.vrIsiRatio(2:end)));
                 disp('Iso Dist:');
-                disp(S.vrIsoDist(:)');
+                disp(S.Sclu.vrIsoDist(:)');
                 disp('ISI Ratio:');
-                disp(S.vrIsiRatio(:)');
+                disp(S.Sclu.vrIsiRatio(:)');
             end
             figure; bar(mrBar', 1, 'stacked');
             xlabel('Day #');
@@ -576,14 +590,10 @@ classdef Animal
         
                 
         function plotClusters(obj, varargin)
-            P = funcDefStr(funcInStr(varargin{:}), ...
-                'maxAmp', 1000, 'fShowWaveform', 1, 'fPlot', 1, ...
-                'viShank', 1:obj.nShanks, 'viDay', 1:numel(obj.cs_fname), ...
-                'cs_fname', obj.cs_fname, 'animalID', obj.animalID, ...
-                'nPadding', obj.nPadding, 'spkLim', obj.spkLim);
+            [obj, P] = obj.setFields(varargin{:});
             
-            cvFet = obj.cmFet(P.viShank, P.viDay);
-            [viDay, viShank] = meshgrid(P.viDay, P.viShank);
+            cvFet = obj.cmFet(obj.viShank, obj.viDay);
+            [viDay, viShank] = meshgrid(obj.viDay, obj.viShank);
             
             for iFet = 1:numel(cvFet)
                 S = cvFet{iFet};
@@ -595,23 +605,24 @@ classdef Animal
 
                 vcDate = getDateFromFullpath(obj.cs_fname{iDay});
                 P.vcTitle = sprintf('%s, %s, Shank%d', obj.animalID, vcDate, iShank);
-                      
+                P.viClu = S.Sclu.cl;
                 fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
-                    obj.animalID, iDay, iShank, max(S.Sclu.cl)-1, sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
+                    obj.animalID, iDay, iShank, max(S.Sclu.cl)-1, ...
+                    sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
                     sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
-                    nanmean(S.vrIsoDist(2:end)), nanmean(S.vrIsiRatio(2:end)));
+                    nanmean(S.Sclu.vrIsoDist(2:end)), ...
+                    nanmean(S.Sclu.vrIsiRatio(2:end)));
 
-                if P.fPlot
+                if obj.fPlot
                     fig = figure('Visible', 'off', 'Position', ...
                         round(get(0, 'ScreenSize')*.8));     
-                    if P.fShowWaveform
+                    if obj.fShowWaveform
                         subplot(3,2,1);
                         plotScienceClu(S.Sclu);
 
                         subplot(3,2,3); 
                         figure(fig);
-                        plotTetClu(S.mrPeak, 'viClu', S.Sclu.cl, 'maxAmp', ...
-                            P.maxAmp, 'vcTitle', P.vcTitle);
+                        plotTetClu(S.mrPeak, P);
                         
                         subplot(3,2,5);
                         plotCluRaster(S.vrTime, S.Sclu.cl);
@@ -625,8 +636,7 @@ classdef Animal
 
                         subplot(2,2,2); 
                         figure(fig);
-                        plotTetClu(S.mrPeak, 'viClu', S.Sclu.cl, 'maxAmp', ...
-                            P.maxAmp, 'vcTitle', P.vcTitle);
+                        plotTetClu(S.mrPeak, P);
                         
                         subplot(2,2,3:4);
                         plotCluRaster(S.vrTime, S.Sclu.cl);
@@ -634,7 +644,7 @@ classdef Animal
                     
                     set(fig, 'Name', sprintf(...
                         'day%d-shank%d; %d-%d sec; 0..%d u%s; %d-%d Hz, fUseSubThresh=%d, fMeanSubt=%d, nInterp=%d, vcDist=%s', ...
-                        iDay, iShank, obj.readDuration(1), obj.readDuration(2), P.maxAmp, ...
+                        iDay, iShank, obj.readDuration(1), obj.readDuration(2), obj.maxAmp, ...
                         obj.vcPeak, obj.freqLim(1), obj.freqLim(2), ...
                         obj.fUseSubThresh, obj.fMeanSubt, obj.nInterp, ...
                         obj.vcDist));
@@ -692,6 +702,19 @@ classdef Animal
 %                 try  tightfig; 
 %                     catch err, disp(lasterr); end
 %             end
+        end
+        
+        
+        % converts class to struct and save
+        function save(obj, fName)
+            if nargin < 2, fName = obj.animalID; end
+            csFields = fieldnames(obj);
+            S = [];
+            for iField=1:numel(csFields)
+                vcField = csFields{iField};
+                eval(sprintf('S.%s = obj.%s;', vcField, vcField));
+            end
+            save(fName, 'S', '-v7.3');
         end
     end %methods    
 end

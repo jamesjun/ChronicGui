@@ -5,11 +5,13 @@ nSpk = size(mrFet, 2);
 vrDist = nan(nClu, 1);
 nFet = size(mrFet, 1);
 
-mrFet = mrFet(:, viClu>1)'; %for mahal, obs x dimm
-viClu(viClu==1) = [];
+vl = viClu>1;
+mrFet = mrFet(:, vl)'; %for mahal, obs x dimm
+viClu = viClu(vl);
 
 % mrFetOut = mrFet(viClu>1, :);
 for iClu=2:nClu
+    try
     vlSpkIn = (viClu == iClu);
     nSpkIn = sum(vlSpkIn);
 %     nSpkOut = nSpk - nSpkIn;
@@ -20,4 +22,8 @@ for iClu=2:nClu
 	sOut = sort(m(~vlSpkIn));
     if nSpkIn > numel(sOut), continue; end
 	vrDist(iClu) = sOut(nSpkIn);
+    catch err
+        disp(lasterr());
+    end
 end
+vrDist(vrDist>1e4) = nan;

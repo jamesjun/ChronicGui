@@ -7,6 +7,7 @@ if ~isfield(P, 'maxAmp'), P.maxAmp = 800; end
 if ~isfield(P, 'shankOffY'), P.shankOffY = 0; end
 if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
 if ~isfield(P, 'iCluNoise'), P.iCluNoise = []; end
+if ~isfield(P, 'fLog'), P.fLog = 0; end
 
 if nChans == 11, viTetChOff = [0 4 7];
 else viTetChOff = 0:4:nChans-4;
@@ -20,12 +21,18 @@ hold on;
 if ~isempty(P.viClu)
     mrColor = [.5, .5, .5; jet(max(P.viClu)-1)];
 end
+if P.fLog
+    [mrPeak, minval] = logpos(mrPeak);
+    ampLim = log([minval, P.maxAmp]);
+else
+    ampLim = [0, P.maxAmp];
+end
 for iTet = nTets:-1:1
    for iPair = 1:nPairs
         ch1 = mrTet(1, iPair) + viTetChOff(iTet);
         ch2 = mrTet(2, iPair) + viTetChOff(iTet);
-        vrX1 = linmap(mrPeak(ch2,:), [0 P.maxAmp], [0 1]) + (iPair-1);
-        vrY1 = linmap(mrPeak(ch1,:), [0 P.maxAmp], [0 1]) + (iTet-1) + P.shankOffY;  
+        vrX1 = linmap(mrPeak(ch2,:), ampLim, [0 1]) + (iPair-1);
+        vrY1 = linmap(mrPeak(ch1,:), ampLim, [0 1]) + (iTet-1) + P.shankOffY;  
         if isempty(P.viClu)
             plot(vrX1, vrY1, 'w.', 'MarkerSize', 1);
         else
