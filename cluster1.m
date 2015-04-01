@@ -10,19 +10,25 @@ if ~P.fCluster, return; end
 try
     vcDate = getDateFromFullpath(P.cs_fname{iDay});
 
-    P.vcTitle = sprintf('%s, %s, Shank%d', P.animalID, vcDate, iShank);
-
+    P.vcTitle = sprintf('%s, %s, Shank%d', P.animalID, vcDate, iShank);    
     switch lower(P.vcFet)
         case 'peak'
             mrFet = S.mrPeak;            
         case 'pca'                            
             mrFet = getWavPca(S.trSpkWav, 3);
-        case 'cov'
-            mrFet = S.mrCov;
         case 'peakmin'
             mrFet = [S.mrPeak; S.mrMin];
         case 'min'
             mrFet = [S.mrMin];
+        case 'pairvpp'
+            P.vcPairFet = 'vpp';
+            mrFet = pairFet(S.trSpkWav, P);
+        case 'paircov'
+            P.vcPairFet = 'cov';
+            mrFet = pairFet(S.trSpkWav, P);
+        case 'paircorr'
+            P.vcPairFet = 'corr';
+            mrFet = pairFet(S.trSpkWav, P);
         otherwise
             error('undefined fet');
     end

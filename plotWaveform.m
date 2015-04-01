@@ -14,7 +14,12 @@ if P.nPadding > 0
 else
     trSpkWav = S.trSpkWav;
 end
-iMax = -P.spkLim(1);
+try
+    viChanMin = S.Sclu.viChanMin;
+catch err
+    viChanMin = [];
+end
+iMax = -P.spkLim(1)+1;
 nChans = size(trSpkWav, 2);
 nTimeSpk = size(trSpkWav, 1); 
 ylim([0 (nChans+1) * P.maxAmp]);
@@ -37,12 +42,17 @@ for iClu = 2:max(viClu)
     vrX = [1:size(trSpkWav, 1)] + xoff;
     mrY = reshape(trSpkWav(:,:,viCluPlot), [nTimeSpk, nChans * numel(viCluPlot)]) ...
         + repmat(mrYoff, [1, numel(viCluPlot)]);
-%     for iChan = 1:nChans %collapse double loop
-% %       mrY = reshape(S.trSpkWav(:,iChan,viCluPlot), [nTimeSpk, numel(viCluPlot)]) + iChan * P.maxAmp;
-%         mrY(:,iChan,:) = trY(:,iChan,:) + iChan * P.maxAmp;
+%     if strcmpi(P.vcFet, 'pairvpp') && ~isempty(viChanMin)
+%         mrYmin = trSpkWav(iMax,viChanMin(iClu),viCluPlot);
+%         viChan1 = 1:nChans;
+%         for iSpk = 1:numel(viCluPlot)
+%             mrY(:, viChan1) = mrY(:, viChan1) - mrYmin(iSpk);
+%             viChan1 = viChan1 + nChans;
+%         end
 %     end
+
     plot(vrX, mrY, 'Color', mrColor(iClu,:), 'LineWidth', .5);
-    plot(iMax*[1 1]+xoff+1, ylim, 'w-');
+    plot(iMax*[1 1]+xoff, ylim, 'w-');
 end
 % set(gcf,'Visible','on');
 % axis tight;

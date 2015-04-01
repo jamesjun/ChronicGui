@@ -1,4 +1,5 @@
-function mrCov = calcCov(trWav, varargin)
+function mrCov = pairFet(trWav, varargin)
+% pairwise feature
 
 % nWav = size(trWav, 1);
 P = funcDefStr(funcInStr(varargin{:}), ...
@@ -20,27 +21,31 @@ if P.nPadding > 0
 end
 
 mrCov = zeros([nPairs, nSpk], 'single');
+trA = trWav(:,viChan1,:);
+trB = trWav(:,viChan2,:);
 switch lower(P.vcPairFet)
     case 'prod'
         for iSpk = 1:nSpk
-            mrCov(:, iSpk) = sum(trWav(:,viChan1,iSpk) .* trWav(:,viChan2,iSpk)); 
+            mrCov(:, iSpk) = sum(trA(:,:,iSpk) .* trB(:,:,iSpk)); 
         end
     case 'cov'
         for iSpk=1:nSpk
-            mrA = trWav(:,viChan1,iSpk);
-            mrB = trWav(:,viChan2,iSpk);    
+            mrA = trA(:,:,iSpk);
+            mrB = trB(:,:,iSpk);  
             mrCov(:, iSpk) = ...
-                mean(bsxfun(@minus, mrA, mean(mrA)) .* bsxfun(@minus, mrB, mean(mrB)));    
+                mean(bsxfun(@minus, mrA, mean(mrA) .* ...
+                    bsxfun(@minus, mrB, mean(mrB))));    
 
         %     mrCov(:, iSpk) = sum(trWav(:,viChan1,iSpk) .* trWav(:,viChan2,iSpk));    
         end
     case 'corr'
         for iSpk=1:nSpk
-            mrA = trWav(:,viChan1,iSpk);
-            mrB = trWav(:,viChan2,iSpk);    
+            mrA = trA(:,:,iSpk);
+            mrB = trB(:,:,iSpk);       
             mrCov(:, iSpk) = ...
-                mean(bsxfun(@minus, mrA, mean(mrA)) .* bsxfun(@minus, mrB, mean(mrB))) ...
-                ./ (std(mrA) .* std(mrB));    
+                mean(bsxfun(@minus, mrA, mean(mrA)) .* ...
+                    bsxfun(@minus, mrB, mean(mrB))) ...
+                    ./ (std(mrA) .* std(mrB));    
 
         %     mrCov(:, iSpk) = sum(trWav(:,viChan1,iSpk) .* trWav(:,viChan2,iSpk));    
         end
@@ -50,12 +55,14 @@ switch lower(P.vcPairFet)
             vrXi = 1:(1/P.nInterp):size(trWav,1);
         end
         for iSpk=1:nSpk
-            mrD = trWav(:,viChan1,iSpk) - trWav(:,viChan2,iSpk);  
+            mrD = trA(:,:,iSpk) - trB(:,:,iSpk);  
             if P.nInterp > 1
                 mrD = interp1(vrX, mrD, vrXi, 'spline');
             end
             mrCov(:, iSpk) = max(mrD) - min(mrD);
         end
+    otherwise
+        error('undefined pairFeature');
 end
 
     

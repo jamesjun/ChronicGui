@@ -1,11 +1,14 @@
-function S = detectPeaks(mrData, varargin)
+function S = detectPeaks(mrData, P, iShank1)
 % per each channels
-P = funcDefStr(funcInStr(varargin{:}), ...
+P = funcDefStr(P, ...
     'sRateHz', 25000, 'maxAmp', 1000, 'fPlot', 0, 'fUseSubThresh', 1, ...
     'vcPeak', 'Vpp', 'shankOffY', 0, 'thresh', [], 'vcDate', '', ...
-    'spkLim', [-8, 16], 'fSpkWav', 0, 'fCov', 0, 'nInterp', 1, ...
+    'spkLim', [-8, 16], 'fSpkWav', 0, 'nInterp', 1, ...
     'fKillRefrac', 0, 'nPadding', 0, ...
-    'vcPlotType', 'cluster', 'keepFraction', 1);
+    'vcPlotType', 'cluster', 'keepFraction', 1, 'cmWavRef', []);
+if nargin < 3
+    iShank1 = [];
+end
 spkLim1 = P.spkLim + [-1, 1] * P.nPadding;
 if nargout == 0, P.fPlot = 1; end
 nChans = size(mrData, 2);
@@ -149,6 +152,12 @@ for iTran = 1:nTran
 %     end
 end
 
+% common average subtraction
+mrT = P.cmWavRef{iShank1}';
+if ~isempty(mrT)
+    mrMax = mrT * mrMax;
+    mrMin = mrT * mrMin;
+end
 switch (P.vcPeak)
     case 'Vpp'
         mrPeak = mrMax - mrMin;
@@ -187,13 +196,13 @@ vrPosY = sum(bsxfun(@times, mrPeak, vrPosYe)) ./ vrPeak;
 
 nTets = round(nChans/4);
 
-if P.fCov, mrCov = calcCov(trSpkWav, P);
-else mrCov = []; end
+% if P.fCov, mrCov = calcCov(trSpkWav, P);
+% else mrCov = []; end
 
 S = struct('mrPeak', mrPeak, 'vrAmp', vrAmp, 'vrTime', vrTime, ...
     'mlTran', mlTran, 'vrPosX', vrPosX, 'vrPosY', vrPosY, 'vrPeak', vrPeak, ...
     'vrThresh', vrThresh, 'nTets', nTets, 'vcDate', P.vcDate, ...
-    'trSpkWav', trSpkWav, 'mrCov', mrCov, 'nPadding', P.nPadding, ...
+    'trSpkWav', trSpkWav, 'nPadding', P.nPadding, ...
     'spkLim', P.spkLim, 'Sclu', [], 'mrMin', mrMin);
 
 if P.fPlot

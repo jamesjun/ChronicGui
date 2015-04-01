@@ -39,18 +39,18 @@ classdef Animal
         vcPeak = 'Vpp'; %feature to detect
         vcFet = 'peak'; 
         vcDist = 'euclidean'; 
-        maxAmp = 1000; % in uV
+        maxAmp = 800; % in uV
         nInterp = 4; 
         thresh = [2 4]; %2 and 4 SD
         nPadding = 4; %number of samples to pad around spkLim
-        fMeanSubt = 1; 
+        fMeanSubt = 1;  %0
         fUseSubThresh = 1; 
-        fCov = 0; 
         fSpkWav = 1; 
-        fPlot = 1; 
+%         fPlot = 1; 
         fParfor = 1; 
         fPeak = 1; 
         keepFraction = .5;
+        cmWavRef; %common average conversion
         
         % cluster
         fCleanClu = 1; 
@@ -73,137 +73,51 @@ classdef Animal
             P = struct(varargin{:});
             obj.animalID = animalID;
             obj.impedance = Impedance(animalID);
+            DATASET;
+            eval(sprintf('obj.cs_fname = dataset.%s(:,1);', obj.animalID));
+            eval(sprintf('obj.csXTickLabel = dataset.%s(:,2);', obj.animalID));
+            eval(sprintf('obj.vnChanOffset = dataset.%s(:,3);', obj.animalID));            
             
             switch obj.animalID
                 case 'ANM282996'
                     obj.dateImplanted = '1/6/2015';
                     obj.implantStyle = 'RICHP';
                     obj.probeType = 'IMECI';
-                    obj.cs_fname = { ...
-                        'D:\Chronic\ANM282996\2015-01-07_14-13-22\CSC1.ncs', ...
-                        'D:\Chronic\ANM282996\2015-01-09_11-44-53\CSC1.ncs', ...
-                        'D:\Chronic\ANM282996\20150114_1150.bin', ...
-                        'D:\Chronic\ANM282996\20150116_1845.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150119_1800.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150121_1730.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150123_1647.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150126-1133.bin', ...
-                        'D:\Chronic\ANM282996\20150203-2313_6-2HS_DispOff_AuxOff_Sbox1.bin', ...
-                        'D:\Chronic\ANM282996\20150210-1645.bin', ...
-                        'D:\Chronic\ANM282996\2015-02-10_18-43-42\CSC1.ncs', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150210-1742.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150213-1350.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150213-1450_192ch.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150217-1616.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150220-1120_test.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150223-1500.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150226-1549.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150302-1537.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150306-1345.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150309-1410.bin'};
-                    obj.csXTickLabel =  {'1', '3', '8', '10', '13', '15', '17', '20'...
-                        '28', '35', '35N', '35D', '38D', '38T', '42', '45', ...
-                        '48', '51', '55', '59', '62'};
 
                 case 'ANM279097' %correct pedot orientation
                     obj.dateImplanted = '1/12/2015';
                     obj.implantStyle = 'HOLTZMANT';
                     obj.probeType = 'PEDOT';
-                    obj.cs_fname = {'D:\Chronic\ANM279097\20150114_1950.bin', ...
-                        'D:\Chronic\ANM279097_ANM279094\20150117_1620.bin', ...
-                        'D:\Chronic\ANM279097_ANM279094\20150119_2018.bin', ...
-                        'D:\Chronic\ANM279097_ANM279094\20150120-1650.bin'};
-                    obj.csXTickLabel = {'1', '7', '8', '10'};
 
                 case 'ANM279094' %correct pedot orientation (1/13)
                     obj.dateImplanted = '1/13/2015';
                     obj.implantStyle = 'HOLTZMANT';
                     obj.probeType = 'PEDOT';
-                    obj.cs_fname = {'D:\Chronic\ANM279094\20150114_1800.bin', ...
-                        'D:\Chronic\ANM279097_ANM279094\20150117_1620.bin', ...
-                        'D:\Chronic\ANM279097_ANM279094\20150119_2018.bin', ...
-                        'D:\Chronic\ANM279097_ANM279094\20150120-1650.bin', ...
-                        'D:\Chronic\ANM279094\20150124-1450.bin'};
-                    obj.csXTickLabel = {'1', '4', '6', '7', '11'};
-                    obj.vnChanOffset = [0 64 64 64 0];
 
                 case 'ANM286577' %flip TiN alive (1/15)
                     obj.dateImplanted = '1/15/2015';
                     obj.implantStyle = 'HOLTZMANT';
                     obj.probeType = 'IMECI';
-                    obj.cs_fname = { ...
-                        'D:\Chronic\ANM286577\20150116_1750.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150119_1800.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150121_1730.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150123_1647.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150126-1133.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150210-1742.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150213-1350.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150213-1450_192ch.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150217-1616.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150220-1120_test.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150223-1500.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150226-1549.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150302-1537.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150306-1345.bin', ...
-                        'D:\Chronic\ANM282996_ANM286577\20150309-1410.bin'};
-                    obj.csXTickLabel = {...
-                        '1', '4', '6', '8', '11', '26', '29D', '29T', ...
-                        '33', '36', '39', '42', '46', '50', '53'};
-                    obj.vnChanOffset = [...
-                         0 64 64 64 64 64 64 64, ...
-                        64 64 64 64 64 64 64];
 
                 case 'ANM286578' %flip TiN (1/20)
                     obj.dateImplanted = '1/20/2015';
                     obj.implantStyle = 'HOLTZMANT';
                     obj.probeType = 'IMECI';
-                    obj.cs_fname = { ...
-                        'D:\Chronic\ANM286578\20150121-0453.bin', ...
-                        'D:\Chronic\ANM286578\20150121-1622.bin', ...
-                        'D:\Chronic\ANM286578\20150123-1523.bin', ...
-                        'D:\Chronic\ANM286578\20150125-1625.bin', ...
-                        'D:\Chronic\ANM286578\20150203-1730.bin'};
-                    obj.csXTickLabel = {'0', '1', '3', '5', '14'};
                     
                 case 'ANM287075'
                     obj.dateImplanted = '2/20/2015';
                     obj.implantStyle = 'RICHP';
                     obj.probeType = 'PEDOT';
-                    obj.cs_fname = { ...
-                        'D:\Chronic\ANM287075\20150220-2155.bin', ...
-                        'D:\Chronic\ANM287075\20150222-1730.bin', ...
-                        'D:\Chronic\ANM287075\20150224-1615.bin', ...
-                        'D:\Chronic\ANM287075\20150224-1723.bin', ...
-                        'D:\Chronic\ANM287075\20150226-1755.bin', ...
-                        'D:\Chronic\ANM287075_ANM287074\20150302-1706.bin', ...
-                        'D:\Chronic\ANM287075_ANM287074\20150304-1215.bin', ...
-                        'D:\Chronic\ANM287075_ANM287074\20150306-1345.bin', ...
-                        'D:\Chronic\ANM287075_ANM287074\20150309-1550.bin'};
-                    obj.csXTickLabel = {'0A', '2A', '4A', '4S', '6', '10', '12', '14', '17'};
-                    
+
                 case 'ANM287074'
                     obj.dateImplanted = '2/27/2015';
                     obj.implantStyle = 'RICHP';
                     obj.probeType = 'PEDOT';
-                    obj.cs_fname = { ...
-                        'D:\Chronic\ANM287074\20150227-2002.bin', ...
-                        'D:\Chronic\ANM287075_ANM287074\20150302-1706.bin', ...
-                        'D:\Chronic\ANM287075_ANM287074\20150304-1215.bin', ...
-                        'D:\Chronic\ANM287075_ANM287074\20150306-1345.bin', ...
-                        'D:\Chronic\ANM287075_ANM287074\20150309-1550.bin'};
-                    obj.csXTickLabel = {'0', '3', '5', '7', '10'};
-                    obj.vnChanOffset = [...
-                         0 64 64 64 64];
                      
                 case 'ANM292757'
                     obj.dateImplanted = '3/10/2015';
                     obj.implantStyle = 'RICHP';
                     obj.probeType = 'IMECI';
-                    obj.cs_fname = { ...
-                        'D:\Chronic\ANM292757\20150310-2130.bin'};
-                    obj.csXTickLabel = {'0'};
-                    obj.vnChanOffset = [0];
                      
                 otherwise
                     error('Invalid AnimalID');
@@ -262,6 +176,7 @@ classdef Animal
             end %switch
             
             obj.cmFet = cell(numel(obj.cvShankChan), numel(obj.cs_fname));
+            obj.cmWavRef = cell(numel(obj.cvShankChan), numel(obj.cs_fname));
             obj.nShanks = numel(obj.cvShankChan);    
             if isfield(P, 'readDuration')
                 obj = obj.getSpikes(P); 
@@ -453,8 +368,8 @@ classdef Animal
                     eval(sprintf('obj.%s = P.%s;', ...
                         csFields{iField}, csFields{iField}));
                 catch err
-                    disp('setFields, P->obj');
-                    disp(csFields{iField});
+%                     disp('setFields, P->obj');
+%                     disp(csFields{iField});
                 end
             end
             if nargout >= 2
@@ -464,8 +379,8 @@ classdef Animal
                         eval(sprintf('P.%s = obj.%s;', ...
                             csFields{iField}, csFields{iField}));
                     catch err
-                        disp('setFields, obj->P');
-                        disp(csFields{iField});
+%                         disp('setFields, obj->P');
+%                         disp(csFields{iField});
                     end
                 end
             end
@@ -475,11 +390,19 @@ classdef Animal
         %just get features without plotting
         function obj = getFet(obj, varargin)
             [obj, P] = obj.setFields(varargin{:});
+            if ~isfield(P, 'fPlot'), P.fPlot = 0; end
             if numel(obj.readDuration) == 1
                 obj.readDuration = [0, P.readDuration(1)];    
                 P.readDuration = readDuration;
             end
-            
+            if isempty(P.viDay)
+                obj.viDay = 1:numel(obj.cs_fname);
+                P.viDay = obj.viDay;
+            end
+            if isempty(P.viShank)
+                obj.viShank = 1:obj.nShanks;
+                P.viShank = obj.viShank;
+            end            
             cs_fname1 = obj.cs_fname(P.viDay);
             warning off;            
             for iDay1 = 1:numel(P.viDay) %limited by memory
@@ -497,24 +420,26 @@ classdef Animal
                 end
                 try
                     [cmData, Sfile] = fcnFileImport(vcFname, P);
-                    P.sRateHz = Sfile.sRateHz;  
+                    obj.cmWavRef(obj.viShank, iDay) = Sfile.cmWavRef;
+                    P.cmWavRef = Sfile.cmWavRef;
+                    P.sRateHz = Sfile.sRateHz;
                     cvFet = cell(size(P.viShank));
                     if P.fParfor
                         P.fPlot = 0;
                         parfor iShank1 = 1:numel(P.viShank)
-                            cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
+                            cvFet{iShank1} = detectPeaks(cmData{iShank1}, P, iShank1);
                             cvFet{iShank1} = cluster1(cvFet{iShank1}, iDay, P.viShank(iShank1), P);
                         end      
                     else
                         if P.fPlot, figure; end
-                        for iShank1 = 1:numel(P.viShank)       
-                            cvFet{iShank1} = detectPeaks(cmData{iShank1}, P);
+                        for iShank1 = 1:numel(P.viShank)     
+                            cvFet{iShank1} = detectPeaks(cmData{iShank1}, P, iShank1);
                             cvFet{iShank1} = cluster1(cvFet{iShank1}, iDay, P.viShank(iShank1), P);
                         end       
                     end
                 catch err
                     fprintf('iDay:%d, %s\n', iDay, vcFname);
-                    disp(err);                    
+                    disp(lasterr);                    
                 end
                 cmData = []; %free memory
                 obj.cmFet(P.viShank, P.viDay(iDay1)) = cvFet;
@@ -546,7 +471,7 @@ classdef Animal
             end
             obj.cmFet(obj.viShank, obj.viDay) = cvFet;          
             
-            if obj.fPlot, obj.plotClusters(); end
+            if P.fPlot, obj.plotClusters(); end
         end
          
         
@@ -591,6 +516,7 @@ classdef Animal
                 
         function plotClusters(obj, varargin)
             [obj, P] = obj.setFields(varargin{:});
+            if ~isfield(P, 'fPlot'), P.fPlot = 1; end
             
             cvFet = obj.cmFet(obj.viShank, obj.viDay);
             [viDay, viShank] = meshgrid(obj.viDay, obj.viShank);
@@ -613,7 +539,7 @@ classdef Animal
                     nanmean(S.Sclu.vrIsoDist(2:end)), ...
                     nanmean(S.Sclu.vrIsiRatio(2:end)));
 
-                if obj.fPlot
+                if P.fPlot
                     fig = figure('Visible', 'off', 'Position', ...
                         round(get(0, 'ScreenSize')*.8));     
                     if obj.fShowWaveform
