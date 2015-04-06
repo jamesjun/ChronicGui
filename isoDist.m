@@ -5,9 +5,10 @@ nSpk = size(mrFet, 2);
 vrDist = nan(nClu, 1);
 nFet = size(mrFet, 1);
 
-vl = viClu>1;
-mrFet = mrFet(:, vl)'; %for mahal, obs x dimm
-viClu = viClu(vl);
+% vl = viClu>1;
+% mrFet = mrFet(:, vl)'; %for mahal, obs x dimm
+% viClu = viClu(vl);
+mrFet = mrFet';
 
 % mrFetOut = mrFet(viClu>1, :);
 for iClu=2:nClu
@@ -26,4 +27,4 @@ for iClu=2:nClu
         disp(lasterr());
     end
 end
-vrDist(vrDist>1e4) = nan;
+% vrDist(vrDist>1e4) = nan;

@@ -9,8 +9,9 @@ if ~isfield(P, 'vcTitle'), P.vcTitle = ''; end
 if ~isfield(P, 'iCluNoise'), P.iCluNoise = []; end
 if ~isfield(P, 'fLog'), P.fLog = 0; end
 
-if nChans == 11, viTetChOff = [0 4 7];
-else viTetChOff = 0:4:nChans-4;
+viTetChOff = 0:4:nChans-4;
+if numel(viTetChOff) < ceil(nChans/4)
+    viTetChOff(end+1) = nChans-4;
 end
 nTets = numel(viTetChOff);
 mrTet = [1 1 1 2 2 3; 2 3 4 3 4 4];

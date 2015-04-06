@@ -23,8 +23,11 @@ catch
 end
 
 % load data and convert units
-if isempty(P.fid), fid = fopen([fname_pre, '.bin'], 'r'); 
-else fid = P.fid; end
+if isempty(P.fid)
+    fid = fopen([fname_pre, '.bin'], 'r'); 
+else
+    fid = P.fid; 
+end
 if isempty(P.readDuration)
     nSamples = floor(S.fileSizeBytes/2/S.nChans); 
 else
@@ -35,7 +38,12 @@ else
     end
     nSamples = round(P.readDuration * S.sRateHz); 
 end
-[mrWav, nBytesRead] = fread(fid, [S.nChans nSamples], 'int16');
+tDuration = nSamples / S.sRateHz;
+tic
+[mrWav, nBytesRead] = fread(fid, [S.nChans nSamples], 'int16=>single');
+tLoadDuration = toc;
+fprintf('File loading took %0.3f s, x%0.2f realtime.\n', ...
+    tLoadDuration, tDuration/tLoadDuration);
 if nargout < 3, fclose(fid); end
 
 if nBytesRead < (S.nChans * nSamples)
@@ -45,7 +53,7 @@ if nBytesRead < (S.nChans * nSamples)
     fprintf('Read less number of samples (%d) than requested (%d).\n', ...
         nSamples, nSamplesReq);
 end
-mrWav = single(mrWav)';
+% mrWav = mrWav';
 
 %----------------------------------
 % filter data
@@ -58,23 +66,23 @@ if ~isempty(P.freqLim)
 else
     vrFiltA = [];
 end
-if isempty(P.viChan), P.viChan = 1:size(mrWav,1); end
+if isempty(P.viChan), P.viChan = 1:S.nChans; end
 if ~iscell(P.viChan), P.viChan = {P.viChan}; end
-if P.fMeanSubt == 3
-    viChan1 = cell2mat(P.viChan);
-    mrWav1 = mrWav(:,viChan1);
-    nChan1 = numel(viChan1);
-    for iChan1 = 1:nChan1
-        iChan = viChan1(iChan1);
-        mrWav1(:,iChan1) = mrWav(:,iChan) - ...
-            mean(mrWav(:,setdiff(viChan1, iChan)),2);
-    end
-    mrWav(:,viChan1) = mrWav1;
-end
+% if P.fMeanSubt == 3
+%     viChan1 = cell2mat(P.viChan);
+%     mrWav1 = mrWav(:,viChan1);
+%     nChan1 = numel(viChan1);
+%     for iChan1 = 1:nChan1
+%         iChan = viChan1(iChan1);
+%         mrWav1(:,iChan1) = mrWav(:,iChan) - ...
+%             mean(mrWav(:,setdiff(viChan1, iChan)),2);
+%     end
+%     mrWav(:,viChan1) = mrWav1;
+% end
 cmWav = cell(size(P.viChan));
 cmWavRef = cell(size(P.viChan));
 for iShank1 = 1:numel(P.viChan)
-    mrWav1 = mrWav(:,P.viChan{iShank1});
+    mrWav1 = mrWav(P.viChan{iShank1},:)';
     % Filter or scale
     if P.fMeanSubt == 0
         mrWav1 = mrWav1 - MAGIC_CONST;

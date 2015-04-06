@@ -1,6 +1,12 @@
-function plotCluRaster(vrTime, viClu)
+function plotCluRaster(vrTime, viClu, viSpk)
 vrTime = vrTime(:)';
 nClu = max(viClu);
+if nargin < 3
+    viSpk = [];
+end 
+if ~isempty(viSpk)
+    vrTime = vrTime(viSpk);
+end
 
 mrColor = [.5 .5 .5; jet(nClu-1)];
 % mrColor(1,:) = .5; %grey

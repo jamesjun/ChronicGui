@@ -5,13 +5,12 @@ P = funcDefStr(P, ...
     'vcPeak', 'Vpp', 'shankOffY', 0, 'thresh', [], 'vcDate', '', ...
     'spkLim', [-8, 16], 'fSpkWav', 0, 'nInterp', 1, ...
     'fKillRefrac', 0, 'nPadding', 0, ...
-    'vcPlotType', 'cluster', 'keepFraction', 1, 'cmWavRef', []);
+    'vcPlotType', 'cluster', 'keepFraction', 1, 'cmWavRef', [], ...
+    'fDiffPair', 0);
 if nargin < 3
     iShank1 = [];
 end
-spkLim1 = P.spkLim + [-1, 1] * P.nPadding;
 if nargout == 0, P.fPlot = 1; end
-nChans = size(mrData, 2);
 
 % multi-shank support
 if iscell(mrData)
@@ -24,6 +23,15 @@ if iscell(mrData)
     end
     return;
 end
+
+if P.fDiffPair
+    [mrData, viChanPair1, viChanPair2] = diffPair(mrData);
+else
+    viChanPair1 = [];
+    viChanPair2 = [];
+end
+nChans = size(mrData, 2);
+spkLim1 = P.spkLim + [-1, 1] * P.nPadding;
 
 vrThreshW = []; %week threshold
 if isempty(P.thresh)
@@ -110,20 +118,33 @@ if P.nInterp > 1
 else
     viRangeInt0 = [];
 end
+
+% @TODO: Max SD and return features
 for iTran = 1:nTran
 %     try
     %find min
     viRange = viUp(iTran):viDn(iTran);
     mlTran(:,iTran) = any(mlData(:,viRange)');  
     viChanZero = find(~mlTran(:,iTran));    
-    [vrMin1, viTime1] = min(mrData(viRange, :));      
-%     mlTran(:,iTran) = any(bsxfun(@and, mlData(:,viRange), vlData(viRange))');
-%     if ~P.fUseSubThresh, vrMin1(viChanZero) = 0; end 
-%     vrMin1(viChanZero) = 0; 
-%     vrMin2 = (vrMin1) .^ 4;
-%     viTime(iTran) = round(sum(viTime1 .* vrMin2) ./ sum(vrMin2)) + viUp(iTran) - 1; %weighted time
-    [~, imin1] = min(vrMin1);
-    viTime(iTran) = viTime1(imin1) + viUp(iTran) - 1;
+    
+    % Find spike marker
+    switch lower(P.vcPeak)
+        case min
+            [vr, vi] = min(mrData(viRange, :));   
+            [~, ispk] = min(vr);
+            viTime(iTran) = vi(ispk) + viUp(iTran) - 1;
+        case max
+            [vr, vi] = max(mrData(viRange, :));   
+            [~, ispk] = max(vr);
+            viTime(iTran) = vi(ispk) + viUp(iTran) - 1;
+        case sdsummax
+            [~, ispk] = max(sum(mrData(viRange, :).^2));   
+            viTime(iTran) = ispk + viUp(iTran) - 1;
+        case pwrsummax
+            [vrMin1, viTime1] = min(mrData(viRange, :));   
+            vrMin2 = (vrMin1) .^ 4;
+            viTime(iTran) = round(sum(viTime1 .* vrMin2) ./ sum(vrMin2)) + viUp(iTran) - 1; %weighted time
+    end     
 
     viRange = viRange0 + viTime(iTran);  %update the range  
     mrData1 = mrData(viRange, :);
@@ -203,7 +224,8 @@ S = struct('mrPeak', mrPeak, 'vrAmp', vrAmp, 'vrTime', vrTime, ...
     'mlTran', mlTran, 'vrPosX', vrPosX, 'vrPosY', vrPosY, 'vrPeak', vrPeak, ...
     'vrThresh', vrThresh, 'nTets', nTets, 'vcDate', P.vcDate, ...
     'trSpkWav', trSpkWav, 'nPadding', P.nPadding, ...
-    'spkLim', P.spkLim, 'Sclu', [], 'mrMin', mrMin);
+    'spkLim', P.spkLim, 'Sclu', [], 'mrMin', mrMin, ...
+    'viChanPair1', viChanPair1, 'viChanPair2', viChanPair2);
 
 if P.fPlot
     switch lower(P.vcPlotType)

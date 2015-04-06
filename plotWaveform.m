@@ -14,6 +14,10 @@ if P.nPadding > 0
 else
     trSpkWav = S.trSpkWav;
 end
+if ~isempty(S.viSpk)
+%     S.vrTime = S.vrTime(viSpk);
+    trSpkWav = trSpkWav(:,:,S.viSpk);
+end
 try
     viChanMin = S.Sclu.viChanMin;
 catch err

@@ -11,61 +11,51 @@ try
     vcDate = getDateFromFullpath(P.cs_fname{iDay});
 
     P.vcTitle = sprintf('%s, %s, Shank%d', P.animalID, vcDate, iShank);    
-    switch lower(P.vcFet)
-        case 'peak'
-            mrFet = S.mrPeak;            
-        case 'pca'                            
-            mrFet = getWavPca(S.trSpkWav, 3);
-        case 'peakmin'
-            mrFet = [S.mrPeak; S.mrMin];
-        case 'min'
-            mrFet = [S.mrMin];
-        case 'pairvpp'
-            P.vcPairFet = 'vpp';
-            mrFet = pairFet(S.trSpkWav, P);
-        case 'paircov'
-            P.vcPairFet = 'cov';
-            mrFet = pairFet(S.trSpkWav, P);
-        case 'paircorr'
-            P.vcPairFet = 'corr';
-            mrFet = pairFet(S.trSpkWav, P);
-        otherwise
-            error('undefined fet');
-    end
+    S.mrFet = getFeatures(S.trSpkWav, P);
+
     if ~isempty(P.funcFet)
-        mrFet = P.funcFet(S.mrPeak);
+        S.mrFet = P.funcFet(S.mrFet);
+    end
+    if P.keepFraction < 1
+        vrFet = sum(S.mrFet);
+        S.viSpk = find(vrFet > quantile(vrFet, 1-P.keepFraction)); %debug
+        S.mrFet = S.mrFet(:,S.viSpk);
+    else
+        S.viSpk = [];
     end
     if P.fNormFet
-        mrFet = bsxfun(@times, mrFet, 1./sqrt(sum(mrFet.^2)));
+        S.mrFet = bsxfun(@times, S.mrFet, 1./sqrt(sum(S.mrFet.^2)));
     end
     
-   % if isempty(P.cluFraction) || P.cluFraction == 1
    if isempty(S.Sclu) || P.fReclust
-        S.Sclu = clusterScience(mrFet, P);
+        S.Sclu = clusterScience(S.mrFet, P);
    else
         S.Sclu = guessNclu(S.Sclu, P);
    end
-%     else
-%         S.Sclu.cl = ones(size(mrFet,1), 1);
-%         S.Sclu.rho = zeros(size(mrFet,1), 1);
-%         S.Sclu.delta = zeros(size(mrFet,1), 1);
-%         vrFet = sum(mrFet.^2);
-%         viFet1 = find(vrFet > quantile(vrFet, 1-P.cluFraction));
-%         Sclu1 = clusterScience(mrFet(:,viFet1), P);
-%         S.Sclu.cl(viFet1) = Sclu1.cl;
-%         S.Sclu.cl(S.Sclu.cl<1) = 1;
-%         S.Sclu.rho(viFet1) = Sclu1.rho;
-%         S.Sclu.delta(viFet1) = Sclu1.delta;
-%         S.Sclu.icl = viFet1(Sclu1.icl);
-%     end
+
     if P.fCleanClu
-        [S.trSpkWav, S.Sclu] = cleanClu(S.trSpkWav, S.Sclu, P); 
+        if isempty(S.viSpk)
+            [S.trSpkWav, S.Sclu] = cleanClu(S.trSpkWav, S.Sclu, P); 
+        else
+            [S.trSpkWav(:,:,S.viSpk), S.Sclu] = ...
+                cleanClu(S.trSpkWav(:,:,S.viSpk), S.Sclu, P); 
+        end
     else
         S.Sclu.viChanMin = [];
     end
     if ~isempty(S.Sclu)
-        S.Sclu.vrIsoDist = isoDist(mrFet, S.Sclu.cl);
+        S.Sclu.vrIsoDist = isoDist(S.mrFet, S.Sclu.cl);
         S.Sclu.vrIsiRatio = isiRatio(S.vrTime, S.Sclu.cl);
+        fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
+            P.animalID, iDay, iShank, max(S.Sclu.cl)-1, ...
+            sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
+            sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
+            nanmean(S.Sclu.vrIsoDist(2:end)), ...
+            nanmean(S.Sclu.vrIsiRatio(2:end)));
+        disp('Iso Dist:');
+        disp(S.Sclu.vrIsoDist(:)');
+        disp('ISI Ratio:');
+        disp(S.Sclu.vrIsiRatio(:)');
     else
         S.Sclu.vrIsoDist = [];
         S.Sclu.vrIsiRatio = [];

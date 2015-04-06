@@ -1,7 +1,7 @@
 function Sclu = guessNclu(Sclu, varargin)
 P = funcInStr(varargin{:});
 if ~isfield(P, 'SIGMA_FACTOR'), P.SIGMA_FACTOR = 4; end
-if ~isfield(P, 'EXCL_DELTA'), P.EXCL_DELTA = .00; end
+if ~isfield(P, 'EXCL_DELTA'), P.EXCL_DELTA = .01; end
 if ~isfield(P, 'EXCL_RHO'), P.EXCL_RHO = .01; end
 if ~isfield(P, 'nClu'), P.nClu = []; end
 if ~isfield(P, 'MAX_RHO_RATIO'), P.MAX_RHO_RATIO = .1; end
