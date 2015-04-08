@@ -102,6 +102,11 @@ for iTran = 1:nTran
             [vr, vi] = max(mrData(viRange, :));   
             [~, ispk] = max(vr);
             viTime(iTran) = vi(ispk) + viUp(iTran) - 1;
+        case 'vpp' %align at mininum for channel having max vpp
+            [vrMax, viMax] = max(mrData(viRange, :));   
+            [vrMin, viMin] = min(mrData(viRange, :));   
+            [~, ispk] = max(vrMax-vrMin);
+            viTime(iTran) = viMin(ispk) + viUp(iTran) - 1;
         case 'sdsummax'
             [~, ispk] = max(sum(mrData(viRange, :).^2));   
             viTime(iTran) = ispk + viUp(iTran) - 1;

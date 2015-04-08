@@ -20,6 +20,8 @@ switch fMeanSubt
         [~, mrWav1] = subtMeanFit(mrWav1);
     case 5 %just do this for peak-to-peak computation
         mrWavRef = subtMeanFit(mrWav1);
+    case 6 % simple mean subtraction
+        mrWav1 = bsxfun(@minus, mrWav1, median(mrWav1, 2)); 
     otherwise
         error('wrong fMeanSubt');
 end %switch

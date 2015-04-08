@@ -1,8 +1,8 @@
 function Sclu = guessNclu(Sclu, varargin)
 P = funcInStr(varargin{:});
 if ~isfield(P, 'SIGMA_FACTOR'), P.SIGMA_FACTOR = 4; end
-if ~isfield(P, 'EXCL_DELTA'), P.EXCL_DELTA = .01; end
-if ~isfield(P, 'EXCL_RHO'), P.EXCL_RHO = .01; end
+if ~isfield(P, 'EXCL_DELTA'), P.EXCL_DELTA = 0; end
+if ~isfield(P, 'EXCL_RHO'), P.EXCL_RHO = 0; end
 if ~isfield(P, 'nClu'), P.nClu = []; end
 if ~isfield(P, 'MAX_RHO_RATIO'), P.MAX_RHO_RATIO = .1; end
 if ~isfield(P, 'fPlot'), P.fPlot = 1; end
@@ -32,7 +32,9 @@ y = delta(viPlot);
 mb = [x, ones(size(x))] \ y;
 y1 = y - mb(1)*x - mb(2); 
 std_y1 = std(y1);
-[~, iOut1] = max(y1);
+[~, viOut1] = sort(y1,'descend');
+iOut1 = viOut1(1);
+iOut2 = viOut1(2);
 maxLogRho = x(iOut1);
 x = x - maxLogRho;
 y1 = y1/std_y1;
@@ -55,8 +57,10 @@ elseif ~isempty(P.nClu) %ambiguous case
     iMin = viY1(P.nClu);
     limX = [x(iMin), x(iOut1)];
     limY = [y1(iMin), y(iOut1)];
-else % directly given
-    limX = [min(x), log(P.MAX_RHO_RATIO)];
+else % directly given %
+%     limX = [min(x), x(iOut2)]; %log(P.MAX_RHO_RATIO)
+%     limX = [min(x), x(iOut1)]; %log(P.MAX_RHO_RATIO)
+    limX = [-10, -2];
     limY = [P.SIGMA_FACTOR, max(y1)];
 end
 viOut = find((limX(1) <= x) & (x <= limX(2)) & ...

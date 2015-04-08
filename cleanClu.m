@@ -1,7 +1,7 @@
 function [trWav, Sclu] = cleanClu(trWav, Sclu, varargin)
 P = funcDefStr(funcInStr(varargin{:}), ...
     'spkLim', [-8 12], 'nPadding', 0, ...
-    'maxChanDiff', [], 'spkRemoveZscore', 3);
+    'maxChanDiff', [], 'spkRemoveZscore', 3, 'vcPeak', 'min');
 
 viClu = Sclu.cl;
 nClu = Sclu.nClu;

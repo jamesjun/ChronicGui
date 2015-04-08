@@ -3,12 +3,9 @@ function [cmWav, S, fid] = importWhisper(vcFullPath, varargin)
 % mrWav: in microvolts
 % if viChan is cell then mrWav is cell for each shank
 
-P = funcInStr(varargin{:});
-if ~isfield(P, 'readDuration'), P.readDuration = []; end %in sec or range
-if ~isfield(P, 'viChan'), P.viChan = []; end
-if ~isfield(P, 'fid'), P.fid = []; end
-if ~isfield(P, 'freqLim'), P.freqLim = []; end
-if ~isfield(P, 'fMeanSubt'), P.fMeanSubt = 0; end
+P = funcDefStr(funcInStr(varargin{:}), ...
+    'readDuration', [], 'viChan', [], 'fid', [], ...
+    'freqLim', [], 'fMeanSubt', 0, 'chOffset', 0);
 
 [vcFilePath, vcFileName, vcFileExt] = fileparts(vcFullPath);
 if isempty(vcFilePath), fname_pre = vcFileName;
@@ -38,12 +35,10 @@ else
     end
     nSamples = round(P.readDuration * S.sRateHz); 
 end
-tDuration = nSamples / S.sRateHz;
+
 tic
 [mrWav, nBytesRead] = fread(fid, [S.nChans nSamples], 'int16=>single');
 tLoadDuration = toc;
-fprintf('File loading took %0.3f s, x%0.2f realtime.\n', ...
-    tLoadDuration, tDuration/tLoadDuration);
 if nargout < 3, fclose(fid); end
 
 if nBytesRead < (S.nChans * nSamples)
@@ -53,7 +48,9 @@ if nBytesRead < (S.nChans * nSamples)
     fprintf('Read less number of samples (%d) than requested (%d).\n', ...
         nSamples, nSamplesReq);
 end
-% mrWav = mrWav';
+S.tLoaded = nSamples / S.sRateHz;
+fprintf('File loading took %0.3f s, x%0.2f realtime.\n', ...
+    tLoadDuration, S.tLoaded/tLoadDuration);
 
 %----------------------------------
 % filter data
@@ -82,19 +79,22 @@ if ~iscell(P.viChan), P.viChan = {P.viChan}; end
 cmWav = cell(size(P.viChan));
 cmWavRef = cell(size(P.viChan));
 for iShank1 = 1:numel(P.viChan)
-    mrWav1 = mrWav(P.viChan{iShank1},:)';
+    mrWav1 = mrWav(P.viChan{iShank1}+P.chOffset,:)';
     % Filter or scale
-    if P.fMeanSubt == 0
-        mrWav1 = mrWav1 - MAGIC_CONST;
-        mrWavRef = [];
-    else
-        [mrWav1, mrWavRef] = subtWavMean(mrWav1, P.fMeanSubt);
-    end
     if ~isempty(vrFiltA)
         mrWav1 = filter(vrFiltB*scale, vrFiltA, mrWav1); %filter data    
     else
     	mrWav1 = mrWav1 * scale;
     end
+    if P.fMeanSubt == 0 
+        if isempty(vrFiltA)
+            mrWav1 = mrWav1 - MAGIC_CONST;
+        end
+        mrWavRef = [];
+    else
+        [mrWav1, mrWavRef] = subtWavMean(mrWav1, P.fMeanSubt);
+    end
+
     cmWav{iShank1} = mrWav1;
     cmWavRef{iShank1} = mrWavRef;
 end

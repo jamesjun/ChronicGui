@@ -2,7 +2,7 @@ function S = cluster1(S, iDay, iShank, P)
 if ~isfield(P, 'fCluster'), P.fCluster = 1; end
 if ~isfield(P, 'funcFet'), P.funcFet = []; end
 if ~isfield(P, 'fReclust'), P.fReclust = 1; end
-
+if ~isfield(P, 'fKeepNoiseClu'), P.fKeepNoiseClu = 1; end
 if isempty(S), return; end
 if ~P.fCluster, return; end
 
@@ -12,16 +12,18 @@ try
 
     P.vcTitle = sprintf('%s, %s, Shank%d', P.animalID, vcDate, iShank);    
     S.mrFet = getFeatures(S.trSpkWav, P);
-
     if ~isempty(P.funcFet)
         S.mrFet = P.funcFet(S.mrFet);
     end
     if P.keepFraction < 1
         vrFet = sum(S.mrFet);
         S.viSpk = find(vrFet > quantile(vrFet, 1-P.keepFraction)); %debug
-        S.mrFet = S.mrFet(:,S.viSpk);
+        S.mrFet = S.mrFet(:,S.viSpk); 
+        S.trSpkWav = S.trSpkWav(:,:,S.viSpk);
+        S.vrTime = S.vrTime(S.viSpk);
+        S.mlTran = S.mlTran(S.viSpk);
     else
-        S.viSpk = [];
+        S.viSpk = 1:size(S.mrFet, 2);
     end
     if P.fNormFet
         S.mrFet = bsxfun(@times, S.mrFet, 1./sqrt(sum(S.mrFet.^2)));
@@ -34,12 +36,12 @@ try
    end
 
     if P.fCleanClu
-        if isempty(S.viSpk)
+%         if isempty(S.viSpk)
             [S.trSpkWav, S.Sclu] = cleanClu(S.trSpkWav, S.Sclu, P); 
-        else
-            [S.trSpkWav(:,:,S.viSpk), S.Sclu] = ...
-                cleanClu(S.trSpkWav(:,:,S.viSpk), S.Sclu, P); 
-        end
+%         else
+%             [S.trSpkWav(:,:,S.viSpk), S.Sclu] = ...
+%                 cleanClu(S.trSpkWav(:,:,S.viSpk), S.Sclu, P); 
+%         end
     else
         S.Sclu.viChanMin = [];
     end
@@ -60,7 +62,12 @@ try
         S.Sclu.vrIsoDist = [];
         S.Sclu.vrIsiRatio = [];
     end    
-
+    if ~P.fKeepNoiseClu        
+        vl = S.Sclu.cl > 1;
+        S.trSpkWav = S.trSpkWav(:,:,vl); %kill spike table       
+        S.viSpk = S.viSpk(vl);
+%         S.vrTime = S.vrTime(vl);
+    end
 catch err
     disp(lasterr);
 end

@@ -22,27 +22,46 @@ end
 if P.vcFet(1) == '@'
     eval(sprintf('funcFet = %s;', lower(P.vcFet)));
     mrFet = zeros(nChans, nSpks, 'single');
+    for iSpk = 1:nSpks
+        mrData1 = trSpkWav(:,:,iSpk);
+        if ~isempty(viRangeInt0)
+            mrData1 = interp1(viRange, mrData1, ...
+                viRangeInt0 , 'spline');
+        end
+        mrFet(:,iSpk) = funcFet(mrData1);    
+    end
+    return;
 else
     switch lower(P.vcFet)
         case {'pairvpp', 'paircov', 'paricorr'}
             mrFet = pairFet(S.trSpkWav, P);
-            return;
         case 'pca'                            
             mrFet = getWavPca(S.trSpkWav, 3);
-            return;
         case 'vpeak'
             mrFet = reshape(trSpkWav(iPeak,:,:), [nChans, nSpks]);
-            return
+        case 'vppdt' %requires seuclidean
+            mrFet = zeros(nChans*2, nSpks, 'single');
+            for iSpk = 1:nSpks
+                mrData1 = trSpkWav(:,:,iSpk);
+                if ~isempty(viRangeInt0)
+                    mrData1 = interp1(viRange, mrData1, ...
+                        viRangeInt0 , 'spline');
+                end
+                [vrMax, viMax] = max(mrData1);
+                [vrMin, viMin] = min(mrData1);
+                mrFet(:,iSpk) = [vrMax-vrMin, viMax-viMin];
+            end
+        case 'vpp'
+            mrFet = zeros(nChans, nSpks, 'single');
+            for iSpk = 1:nSpks
+                mrData1 = trSpkWav(:,:,iSpk);
+                if ~isempty(viRangeInt0)
+                    mrData1 = interp1(viRange, mrData1, ...
+                        viRangeInt0 , 'spline');
+                end
+                mrFet(:,iSpk) = max(mrData1) - min(mrData1);
+            end
         otherwise
             error('unsupported vcFet: %s', P.vcFet);
     end
-end
-
-for iSpk = 1:nSpks
-    mrData1 = trSpkWav(:,:,iSpk);
-    if ~isempty(viRangeInt0)
-        mrData1 = interp1(viRange, mrData1, ...
-            viRangeInt0 , 'spline');
-    end
-    mrFet(:,iSpk) = funcFet(mrData1);    
 end

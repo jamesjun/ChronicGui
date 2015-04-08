@@ -3,13 +3,8 @@ function [cmWav, S] = importNlxCsc(vcFullPath, varargin)
 % mrData: channel data
 % S: file meta
 % returns in Whisper channel order
-P = funcInStr(varargin{:});
-if ~isfield(P, 'readDuration'), P.readDuration = []; end %in sec or range
-if ~isfield(P, 'viChan'), P.viChan = []; end
-if ~isfield(P, 'fid'), P.fid = []; end
-if ~isfield(P, 'freqLim'), P.freqLim = []; end
-if ~isfield(P, 'fMeanSubt'), P.fMeanSubt = 0; end
-if ~isfield(P, 'nChans'), P.nChans = 64; end
+P = funcDefStr(funcInStr(varargin{:}), 'readDuration', [], 'viChan', [], ...
+    'fid', [], 'freqLim', [], 'fMeanSubt', 0, 'nChans', 64, 'chOffset', 0);
 
 [vcFilePath, vcFileName, vcFileExt] = fileparts(vcFullPath);
 % vcFilePath = 'D:\ANM282996\2015-01-07_14-13-22\';
@@ -71,7 +66,7 @@ end
 cmWav = cell(size(P.viChan));
 cmWavRef = cell(size(P.viChan));
 for iShank1 = 1:numel(P.viChan)
-    mrWav1 = mrWav(:,P.viChan{iShank1});    
+    mrWav1 = mrWav(:,P.viChan{iShank1}+P.chOffset);    
     % Mean subtract
     % Filter or scale
     [mrWav1, mrWavRef] = subtWavMean(mrWav1, P.fMeanSubt);
@@ -84,5 +79,5 @@ for iShank1 = 1:numel(P.viChan)
     cmWavRef{iShank1} = mrWavRef;
 end
 
-S = struct('sRateHz', sRateHz, 'nChans', P.nChans);
+S = struct('sRateHz', sRateHz, 'nChans', P.nChans, 'tLoaded', nSamples / sRateHz);
 S.cmWavRef = cmWavRef; %outputs in microvolts

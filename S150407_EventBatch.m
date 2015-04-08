@@ -8,25 +8,25 @@ viDay = [];
 viShank = [];
 fPlot = 0;
 freqLim = [500 6000];
-fMeanSubt = 2;
+fMeanSubt = 6;
 thresh = [];
 fDiffPair = 0;
 fMeasureEvent = 1;
 vcFet = 'vpp';
 vcPeak = 'vpp';
 
-fCluster = 1;
+fCluster = 0;
 funcFet = [];
 SIGMA_FACTOR = 6;
 
-fDebug = 1;
+fDebug = 0;
 
 %%
 % %60% spent on load time 
 if fDebug
     nAnimals = 1; tDuration = 200; fSave = 0; fParfor = 0; 
     viDay = 20; viShank = 1; fPlot = 1;%debug
-    fDiffPair = 0; fMeasureEvent = 1; fCluster = 1; fMeanSubt = 6; thresh = [];
+    fDiffPair = 0; fMeasureEvent = 1; fCluster = 1; fMeanSubt = 2; thresh = [];
 end
 
 % for fDiffPair = 0:1
@@ -50,7 +50,7 @@ for iAnimal = 1:nAnimals
         if fSave
             eval(sprintf('%s = obj;', vcAnimal));
             clear obj;
-            eval(sprintf('save D150407clu_%s_%d %s -v7.3;', ...
+            eval(sprintf('save D150407evt_%s_%d %s -v7.3;', ...
                 vcAnimal, tDuration, vcAnimal));
             clear(vcAnimal);
         end

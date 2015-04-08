@@ -1,18 +1,16 @@
-function plotCluRaster(vrTime, viClu, viSpk)
+function plotCluRaster(vrTime, viClu)
+    
+% if ~P.fKeepNoiseClu
+%     viClu = viClu(viClu>1);
+% end
+
 vrTime = vrTime(:)';
 nClu = max(viClu);
-if nargin < 3
-    viSpk = [];
-end 
-if ~isempty(viSpk)
-    vrTime = vrTime(viSpk);
-end
 
 mrColor = [.5 .5 .5; jet(nClu-1)];
 % mrColor(1,:) = .5; %grey
 hold on;
 % colormap jet;
-
 for iClu = 1:nClu
     viSpk = find(viClu == iClu);
     vrX = repmat(vrTime(viSpk), [2 1]);
