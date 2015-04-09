@@ -1,16 +1,16 @@
-function S = cluster1(S, iDay, iShank, P)
-if ~isfield(P, 'fCluster'), P.fCluster = 1; end
-if ~isfield(P, 'funcFet'), P.funcFet = []; end
-if ~isfield(P, 'fReclust'), P.fReclust = 1; end
-if ~isfield(P, 'fKeepNoiseClu'), P.fKeepNoiseClu = 1; end
+function [S, P] = cluster1(S, varargin)
+P = funcDefStr(funcInStr(varargin{:}), ...
+    'fCluster', 1, 'funcFet', [], 'fReclust', 1, 'fKeepNoiseClu', 1, ...
+    'iDay', [], 'iShank', [], 'keepFraction', 1, 'fCleanClu', 1, ...
+    'fNormFet', 0, 'fReclust', 0, 'Sclu', []);
+
 if isempty(S), return; end
 if ~P.fCluster, return; end
 
-
 try
-    vcDate = getDateFromFullpath(P.cs_fname{iDay});
-
-    P.vcTitle = sprintf('%s, %s, Shank%d', P.animalID, vcDate, iShank);    
+    
+%     vcDate = getDateFromFullpath(P.cs_fname{P.iDay});
+%     P.vcTitle = sprintf('%s, %s, Shank%d', P.animalID, vcDate, P.iShank);    
     S.mrFet = getFeatures(S.trSpkWav, P);
     if ~isempty(P.funcFet)
         S.mrFet = P.funcFet(S.mrFet);
@@ -48,12 +48,12 @@ try
     if ~isempty(S.Sclu)
         S.Sclu.vrIsoDist = isoDist(S.mrFet, S.Sclu.cl);
         S.Sclu.vrIsiRatio = isiRatio(S.vrTime, S.Sclu.cl);
-        fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
-            P.animalID, iDay, iShank, max(S.Sclu.cl)-1, ...
-            sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
-            sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
-            nanmean(S.Sclu.vrIsoDist(2:end)), ...
-            nanmean(S.Sclu.vrIsiRatio(2:end)));
+%         fprintf('%s, day%d, shank%d, #Clu=%d, %d/%d spikes(%0.1f%%), <isoDist>=%0.1f, <isi rat>=%0.3f\n', ...
+%             P.animalID, iDay, iShank, max(S.Sclu.cl)-1, ...
+%             sum(S.Sclu.cl>1), numel(S.Sclu.cl), ...
+%             sum(S.Sclu.cl>1) / numel(S.Sclu.cl) * 100, ...
+%             nanmean(S.Sclu.vrIsoDist(2:end)), ...
+%             nanmean(S.Sclu.vrIsiRatio(2:end)));
         disp('Iso Dist:');
         disp(S.Sclu.vrIsoDist(:)');
         disp('ISI Ratio:');

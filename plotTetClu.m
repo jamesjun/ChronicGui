@@ -3,7 +3,7 @@ nChans = size(mrPeak, 1);
 
 P = funcDefStr(funcInStr(varargin{:}), ...
     'viClu', [], 'maxAmp', 1000, 'shankOffY', 0, 'vcTitle', '', ...
-    'iCluNoise', [], 'fLog', 0, 'funcFet', 0, 'fKeepNoiseClu', 1);
+    'iCluNoise', [], 'fLog', 0, 'funcFet', [], 'fKeepNoiseClu', 1);
     
 viTetChOff = 0:4:nChans-4;
 if numel(viTetChOff) < ceil(nChans/4)
@@ -46,8 +46,8 @@ for iTet = nTets:-1:1
    for iPair = 1:nPairs
         ch1 = mrTet(1, iPair) + viTetChOff(iTet);
         ch2 = mrTet(2, iPair) + viTetChOff(iTet);
-        vrX1 = linmap(mrPeak(ch2,:), ampLim, [0 1]) + (iPair-1);
-        vrY1 = linmap(mrPeak(ch1,:), ampLim, [0 1]) + (iTet-1) + P.shankOffY;  
+        vrX1 = linmap(mrPeak(ch2,:), ampLim, [0 1], 1) + (iPair-1);
+        vrY1 = linmap(mrPeak(ch1,:), ampLim, [0 1], 1) + (iTet-1) + P.shankOffY;  
         if isempty(viClu)
             plot(vrX1, vrY1, 'w.', 'MarkerSize', 1);
         else

@@ -1,9 +1,10 @@
-function S = buildSpikeTable(mrData, P)
+function [S, P] = buildSpikeTable(mrData, varargin)
 % per each channels
-P = funcDefStr(P, ...
-    'sRateHz', 25000, 'thresh', [], 'spkLim', [-8, 16], ...
+P = funcDefStr(funcInStr(varargin{:}), ...
+    'sRateHz', 25000, 'thresh', [], 'spkLim', [-8, 12], ...
     'nPadding', 0, 'fDiffPair', 0, 'tConvolve', .0005, ...
-    'tRefrac', 0, 'fMeasureEvent', 0, 'tLoaded', [], 'sRateHz', []);
+    'tRefrac', 0, 'fMeasureEvent', 1, 'tLoaded', [], 'sRateHz', [], ...
+    'vcPeak', 'vpp', 'nInterp', 4, 'vcFet', 'vpp', 'fCluster', 1);
 if nargout == 0, P.fPlot = 1; end
 
 if P.fDiffPair
@@ -62,12 +63,11 @@ end
 if nTran==0, S=[]; return; end
 
 % handle edge cases for spike table
-if viUp(1) + spkLim1(1) < 1
-    viUp(1) = [];   viDn(1) = [];   nTran = nTran-1;
-end
-if viDn(end) + spkLim1(2) > size(mrData, 1)
-    viUp(end) = [];   viDn(end) = [];   nTran = nTran-1;
-end
+vlKill = (viUp + spkLim1(1) < 1) | ...
+    viDn + spkLim1(2) > size(mrData, 1);
+viUp(vlKill) = [];
+viDn(vlKill) = [];
+nTran = nTran - sum(vlKill);
 
 % Kill refrac
 if P.tRefrac > 0

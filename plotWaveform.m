@@ -25,20 +25,23 @@ try
 catch err
     viCluOrder = [2:max(viClu)];
 end
+viCluOrder = [1, viCluOrder];
 iMax = -P.spkLim(1)+1;
 nChans = size(trSpkWav, 2);
 nTimeSpk = size(trSpkWav, 1); 
 maxAmp = P.maxAmp;
 ylim([0 (nChans+1) * maxAmp]);
-xlim([0, (max(viClu)-1) * size(trSpkWav, 1)+1]);
+xlim([0, (max(viClu)) * size(trSpkWav, 1)+1]);
 % set(gcf, 'Visible', 'off'); %try-catch?
 hold on;
 mrYoff = repmat((1:nChans) * maxAmp, [nTimeSpk, 1]);
 if ~P.fKeepNoiseClu
     viClu = viClu(viClu>1);
 end
-for iClu = 2:max(viClu)
-    iClu1 = viCluOrder(iClu-1);
+vrXTick = zeros(1,max(viClu));
+vnSpkClu = zeros(1,max(viClu));
+for iClu = 1:max(viClu)
+    iClu1 = viCluOrder(iClu);
     viCluPlot = find(viClu==iClu);
     nSpkClu = numel(viCluPlot);
 %     if isnan(S.vrIsoDist(iClu)), continue; end %skip if isnan
@@ -49,7 +52,7 @@ for iClu = 2:max(viClu)
     end
     
 %     viCluPlot = viCluPlot(1); % plot only one
-    xoff = size(trSpkWav, 1)*(iClu1-2);
+    xoff = size(trSpkWav, 1)*(iClu1-1);
     vrX = [1:size(trSpkWav, 1)] + xoff;
     mrY = reshape(trSpkWav(:,:,viCluPlot), [nTimeSpk, nChans * numel(viCluPlot)]) ...
         + repmat(mrYoff, [1, numel(viCluPlot)]);
@@ -64,10 +67,16 @@ for iClu = 2:max(viClu)
 
     plot(vrX, mrY, 'Color', mrColor(iClu,:), 'LineWidth', .5);
     plot(iMax*[1 1]+xoff, ylim, 'w-');
+    vrXTick(iClu1) = iMax + xoff;
+    vnSpkClu(iClu) = nSpkClu;
 end
 % set(gcf,'Visible','on');
 % axis tight;
-set(gca, {'XTick', 'YTick', 'Color'}, {[], [], 'k'});
+set(gca, {'YTick', 'Color'}, {[], 'k'});
+set(gca, 'XTick', vrXTick);
+set(gca, 'XTickLabel', vnSpkClu);
+xlabel('# Spikes');
+ylabel('Chan #');
 title(sprintf('#Spikes: %d, #Clu: %d', sum(viClu>1), max(viClu)-1))
 % set(gcf, 'Name', vcTitle);
 end

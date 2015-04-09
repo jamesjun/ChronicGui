@@ -1,12 +1,11 @@
 function [trWav, Sclu] = cleanClu(trWav, Sclu, varargin)
 P = funcDefStr(funcInStr(varargin{:}), ...
     'spkLim', [-8 12], 'nPadding', 0, ...
-    'maxChanDiff', [], 'spkRemoveZscore', 3, 'vcPeak', 'min');
+    'maxChanDiff', [], 'spkRemoveZscore', 3, 'vcPeak', 'min', 'iCluNoise', 1);
 
 viClu = Sclu.cl;
 nClu = Sclu.nClu;
 
-iCluNoise = 1;
 nChans = size(trWav, 2);
 nWav = size(trWav, 1);
 imin = -P.spkLim(1)+P.nPadding+1;
@@ -39,13 +38,14 @@ for iClu = 2:nClu
         end
     else
         viNoise1 = abs(viChanMin1-median(viMinChan)) > P.maxChanDiff;
-        viClu(viSpk(viNoise1)) = iCluNoise;
+        viClu(viSpk(viNoise1)) = P.iCluNoise;
         viSpk(viNoise1) = [];
         if ~isempty(viNoise1)
             fprintf('iClu:%d, %d/%d spikes removed\n', ...
                 iClu, numel(viNoise1), numel(viSpk));
         end
     end
+    
     %do it for all chan
     if ~isempty(P.spkRemoveZscore) %remove based on minimum channel only
         mrWav = reshape(trWav(viRangeMin, iChanMin1, viSpk), ...
@@ -53,7 +53,7 @@ for iClu = 2:nClu
         mrWavDiff = bsxfun(@minus, mrWav, median(mrWav, 2));
         vrErrZ = zscore(std(mrWavDiff));
         viNoise1 = find(vrErrZ > P.spkRemoveZscore);
-        viClu(viSpk(viNoise1)) = iCluNoise;
+        viClu(viSpk(viNoise1)) = P.iCluNoise;
         viSpk(viNoise1) = [];
         if ~isempty(viNoise1)
             fprintf('iClu:%d, %d/%d spikes removed\n', ...
