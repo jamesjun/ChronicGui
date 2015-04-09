@@ -28,7 +28,7 @@ if fDebug
     viDay = 20; viShank = 1; fPlot = 1;%debug
     fDiffPair = 0; fMeasureEvent = 1; fCluster = 1; fMeanSubt = 2; thresh = [];
 end
-
+tic
 % for fDiffPair = 0:1
 for iAnimal = 1:nAnimals
     tic
@@ -45,7 +45,7 @@ for iAnimal = 1:nAnimals
             'SIGMA_FACTOR', SIGMA_FACTOR, ...
             'fMeasureEvent', fMeasureEvent, 'vcPeak', vcPeak, ...
             'fMeanSubt', fMeanSubt, 'thresh', thresh, 'vcDist', 'euclidean');
-        obj.plotBarClu(); 
+%         obj.plotBarClu(); 
         obj.plotEvents();
         if fSave
             eval(sprintf('%s = obj;', vcAnimal));
@@ -60,3 +60,4 @@ for iAnimal = 1:nAnimals
     toc
 end
 % end
+toc
