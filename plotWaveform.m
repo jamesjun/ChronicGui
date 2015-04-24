@@ -1,7 +1,7 @@
 function plotWaveform(S, varargin)
 P = funcDefStr(funcInStr(varargin{:}), ...
     'spkLim', [-8, 12], 'maxAmp', 1000, 'nSpkMax', inf, 'nPadding', 0, ...
-    'fKeepNoiseClu', 1);
+    'fKeepNoiseClu', 1, 'iCluNoise', 1);
 
 viClu = S.Sclu.cl;
 if max(viClu) == 1, return; end
@@ -43,9 +43,12 @@ vnSpkClu = zeros(1,max(viClu));
 for iClu = 1:max(viClu)
     iClu1 = viCluOrder(iClu);
     viCluPlot = find(viClu==iClu);
+    if isempty(viCluPlot), continue; end
     nSpkClu = numel(viCluPlot);
 %     if isnan(S.vrIsoDist(iClu)), continue; end %skip if isnan
 %     if S.vrIsoDist(iClu) < 30, continue; end %distance too low
+    mrYm = reshape(mean(trSpkWav(:,:,viCluPlot),3), nTimeSpk, []) + mrYoff;
+    
     if nSpkClu > P.nSpkMax
         viPlot = random('unid', nSpkClu, [P.nSpkMax,1]);
         viCluPlot = viCluPlot(viPlot);
@@ -66,6 +69,7 @@ for iClu = 1:max(viClu)
 %     end
 
     plot(vrX, mrY, 'Color', mrColor(iClu,:), 'LineWidth', .5);
+    plot(vrX, mrYm, 'w-', 'LineWidth', .5);
     plot(iMax*[1 1]+xoff, ylim, 'w-');
     vrXTick(iClu1) = iMax + xoff;
     vnSpkClu(iClu) = nSpkClu;
@@ -77,6 +81,8 @@ set(gca, 'XTick', vrXTick);
 set(gca, 'XTickLabel', vnSpkClu);
 xlabel('# Spikes');
 ylabel('Chan #');
-title(sprintf('#Spikes: %d, #Clu: %d', sum(viClu>1), max(viClu)-1))
+nSpkClustered = sum(viClu>P.iCluNoise);
+title(sprintf('#Spikes: %d (%0.1f %%clustered), #Clu: %d', ...
+    nSpkClustered, nSpkClustered/numel(viClu)*100, max(viClu)-P.iCluNoise))
 % set(gcf, 'Name', vcTitle);
 end

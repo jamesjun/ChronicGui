@@ -3,7 +3,7 @@ function mrCov = pairFet(trWav, varargin)
 
 % nWav = size(trWav, 1);
 P = funcDefStr(funcInStr(varargin{:}), ...
-    'nPadding', 0, 'vcPairFet', 'cov');
+    'nPadding', 0, 'vcFet', 'pairdot');
     
 nChans = size(trWav, 2);
 nSpk = size(trWav, 3);
@@ -23,11 +23,22 @@ end
 mrCov = zeros([nPairs, nSpk], 'single');
 trA = trWav(:,viChan1,:);
 trB = trWav(:,viChan2,:);
-switch lower(P.vcPairFet)
+switch lower(P.vcFet)
     case 'prod'
         for iSpk = 1:nSpk
             mrCov(:, iSpk) = sum(trA(:,:,iSpk) .* trB(:,:,iSpk)); 
         end
+        
+    case 'pairdot'
+        for iSpk=1:nSpk
+            mrA = trA(:,:,iSpk);
+            mrB = trB(:,:,iSpk);  
+            mrCov(:, iSpk) = ...
+                mean(mrA .* mrB);  
+
+        %     mrCov(:, iSpk) = sum(trWav(:,viChan1,iSpk) .* trWav(:,viChan2,iSpk));    
+        end
+        
     case 'cov'
         for iSpk=1:nSpk
             mrA = trA(:,:,iSpk);

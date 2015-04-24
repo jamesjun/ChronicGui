@@ -17,6 +17,10 @@ P = funcDefStr(funcInStr(varargin{:}), ...
 
 P.fPlot = nargout == 0;
 dist = single(pdist(mrPeak', P.vcDist))';
+dist(isnan(dist)) = max(dist);
+%vlZeroDist = dist == 0;
+%dist(vlZeroDist) = min(dist(~vlZeroDist));
+
 nPoints = size(mrPeak, 2);
 % NL = nPoints-1;
 ND = nPoints;

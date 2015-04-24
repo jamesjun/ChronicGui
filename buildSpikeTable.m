@@ -4,7 +4,8 @@ P = funcDefStr(funcInStr(varargin{:}), ...
     'sRateHz', 25000, 'thresh', [], 'spkLim', [-8, 12], ...
     'nPadding', 0, 'fDiffPair', 0, 'tConvolve', .0005, ...
     'tRefrac', 0, 'fMeasureEvent', 1, 'tLoaded', [], 'sRateHz', [], ...
-    'vcPeak', 'vpp', 'nInterp', 4, 'vcFet', 'vpp', 'fCluster', 1);
+    'vcPeak', 'vpp', 'nInterp', 4, 'vcFet', 'vpp', 'fCluster', 1, ...
+    'vcFetMeas', 'vpp', 'qqFactor', 4);
 if nargout == 0, P.fPlot = 1; end
 
 if P.fDiffPair
@@ -18,7 +19,7 @@ spkLim1 = P.spkLim + [-1, 1] * P.nPadding;
 
 vrThreshW = []; %week threshold
 if isempty(P.thresh)
-    vrThresh = 5 * median(abs(mrData))/0.6745;  % default methods
+    vrThresh = P.qqFactor * median(abs(mrData))/0.6745;  % default methods
 else
     if numel(P.thresh) == 1
         vrThresh = repmat(P.thresh, [1, nChans]);
@@ -83,9 +84,11 @@ end
 trSpkWav = zeros([diff(spkLim1)+1, nChans, nTran], 'single');
 mlTran = false(nChans, nTran); %if a channel crossed threshold or not
 viTime = zeros(1, nTran);
+viChanRef = zeros(1, nTran);
 % miTime = zeros(nChans, nTran, 'single');
 viRange0 = P.spkLim(1):P.spkLim(2);
 viRange1 = spkLim1(1):spkLim1(2);
+fprintf('nSpk: %d\n', size(trSpkWav,3));
 
 % for each transition copy spike table
 for iTran = 1:nTran
@@ -96,27 +99,29 @@ for iTran = 1:nTran
     switch lower(P.vcPeak)
         case 'min'
             [vr, vi] = min(mrData(viRange, :));   
-            [~, ispk] = min(vr);
-            viTime(iTran) = vi(ispk) + viUp(iTran) - 1;
+            [~, iChanRef] = min(vr);
+            viTime(iTran) = vi(iChanRef) + viUp(iTran) - 1;
         case 'max'
             [vr, vi] = max(mrData(viRange, :));   
-            [~, ispk] = max(vr);
-            viTime(iTran) = vi(ispk) + viUp(iTran) - 1;
+            [~, iChanRef] = max(vr);
+            viTime(iTran) = vi(iChanRef) + viUp(iTran) - 1;
         case 'vpp' %align at mininum for channel having max vpp
             [vrMax, viMax] = max(mrData(viRange, :));   
             [vrMin, viMin] = min(mrData(viRange, :));   
-            [~, ispk] = max(vrMax-vrMin);
-            viTime(iTran) = viMin(ispk) + viUp(iTran) - 1;
+            [~, iChanRef] = max(vrMax-vrMin);
+            viTime(iTran) = viMin(iChanRef) + viUp(iTran) - 1;
         case 'sdsummax'
-            [~, ispk] = max(sum(mrData(viRange, :).^2));   
-            viTime(iTran) = ispk + viUp(iTran) - 1;
+            [~, iChanRef] = max(sum(mrData(viRange, :).^2));   
+            viTime(iTran) = iChanRef + viUp(iTran) - 1;
         case 'pwrsummax'
+            iChanRef = nan;
             [vrMin1, viTime1] = min(mrData(viRange, :));   
             vrMin2 = (vrMin1) .^ 4;
             viTime(iTran) = round(sum(viTime1 .* vrMin2) ./ sum(vrMin2)) + viUp(iTran) - 1; %weighted time
         otherwise
             error('buildSpikeTable-incorrect vcPeak: %s', P.vcPeak);
-    end     
+    end  
+    viChanRef(iTran) = iChanRef;
     trSpkWav(:, :, iTran) = ...
         mrData(viRange1 + viTime(iTran), :);
 end %for tran
@@ -124,11 +129,13 @@ end %for tran
 S = struct('vrTime', viTime/P.sRateHz, 'mlTran', mlTran, ...
     'vrThresh', vrThresh, 'trSpkWav', trSpkWav, ...
     'viChanPair1', viChanPair1, 'viChanPair2', viChanPair2, 'Sclu', [], ...
-    'tLoaded', P.tLoaded, 'sRateHz', P.sRateHz);
+    'tLoaded', P.tLoaded, 'sRateHz', P.sRateHz, 'viChanRef', viChanRef);
 
 if P.fMeasureEvent
+    P1 = P;
+    P1.vcFet = P.vcFetMeas;
     S.vnEvtNChan = sum(mlTran);
-    S.vrEvtAmp = max(getFeatures(trSpkWav, P));    
+    S.vrEvtAmp = max(getFeatures(trSpkWav, P1));    
     if ~P.fCluster %no need to keep
         S.trSpkWav = [];
     end

@@ -3,7 +3,8 @@ nChans = size(mrPeak, 1);
 
 P = funcDefStr(funcInStr(varargin{:}), ...
     'viClu', [], 'maxAmp', 1000, 'shankOffY', 0, 'vcTitle', '', ...
-    'iCluNoise', [], 'fLog', 0, 'funcFet', [], 'fKeepNoiseClu', 1);
+    'iCluNoise', [], 'fLog', 0, 'funcFet', [], 'fKeepNoiseClu', 1, ...
+    'fNormFet', 0, 'ampLim', []);
     
 viTetChOff = 0:4:nChans-4;
 if numel(viTetChOff) < ceil(nChans/4)
@@ -31,16 +32,22 @@ hold on;
 if ~isempty(P.viClu)
     mrColor = [.5, .5, .5; jet(max(P.viClu)-1)];
 end
-if ~isempty(P.funcFet)
+if P.fNormFet
+    maxAmp = 1;
+elseif ~isempty(P.funcFet)
     maxAmp = P.funcFet(P.maxAmp);
 else
     maxAmp = P.maxAmp;
 end
+
 if P.fLog
     [mrPeak, minval] = logpos(mrPeak);
     ampLim = log([minval, maxAmp]);
 else
     ampLim = [0, maxAmp];
+end
+if ~isempty(P.ampLim)
+    ampLim = P.ampLim;
 end
 for iTet = nTets:-1:1
    for iPair = 1:nPairs

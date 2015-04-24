@@ -1,8 +1,8 @@
 function Sclu = guessNclu(Sclu, varargin)
 P = funcInStr(varargin{:});
 if ~isfield(P, 'SIGMA_FACTOR'), P.SIGMA_FACTOR = 4; end
-if ~isfield(P, 'EXCL_DELTA'), P.EXCL_DELTA = 0; end
-if ~isfield(P, 'EXCL_RHO'), P.EXCL_RHO = 0; end
+if ~isfield(P, 'EXCL_DELTA'), P.EXCL_DELTA = .001; end
+if ~isfield(P, 'EXCL_RHO'), P.EXCL_RHO = 0.001; end
 if ~isfield(P, 'nClu'), P.nClu = []; end
 if ~isfield(P, 'MAX_RHO_RATIO'), P.MAX_RHO_RATIO = .1; end
 if ~isfield(P, 'fPlot'), P.fPlot = 1; end
@@ -50,7 +50,7 @@ if P.fAskUser
     vrPos = wait(imrect);
     limX = cumsum(vrPos([1, 3]));
     limY = cumsum(vrPos([2, 4]));  
-    close(fig);
+%     close(fig);
 elseif ~isempty(P.nClu) %ambiguous case
     error('not supported');
     [~, viY1] = sort(y1, 'descend');
