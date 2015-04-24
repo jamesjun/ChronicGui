@@ -5,14 +5,17 @@
 tlim = []; %time range to analyze, 2840s max
 fFibo = 1;
 flim = [50, .95*5000];
+%flim = [50, 3000]; %highpass
 nInterp = 1;
 maxAmp = 2000;
 fCorr = 0;
-tPlot = [0 .5];
+tPlot = [0 1];
 fDiffPair = 0;
+viChan = (1:8);
 thresh = 400; %QQ criteria
 vcFilename = 'James_ThursdayTest_extracellular.tsf';
 % vcFilename = 'James_in-vitro_extracellular_traces.tsf';
+vcOutFilename = sprintf('%s.csv', vcFilename(1:end-4));
 
 if ~exist('mrWav0', 'var')
     [mrWav0, Sfile] = importTSF(vcFilename, ...
@@ -35,7 +38,7 @@ end
 vcTitle = sprintf('%s sec, fFibo:%d, %s Hz, 0..%d uV, fDiffPair:%d', ...
     vcTlim, fFibo, vcFlim, maxAmp, fDiffPair);
 nlim(1) = max(1, nlim(1));
-mrWav = mrWav0(nlim(1):nlim(2), :); %trim data
+mrWav = mrWav0(nlim(1):nlim(2), viChan); %trim data
 if fFibo, mrWav = filtFibo3(mrWav); end
 if fDiffPair
     [mrWav, viChanPair1, viChanPair2] = diffPair(mrWav);
@@ -51,7 +54,11 @@ if nInterp>1
 %     clear mrWav1;
 end
 if ~isempty(flim)
-    [vrFiltB, vrFiltA] = butter(4, flim / Sfile.sRateHz/nInterp * 2,'bandpass');    
+    if isinf(flim(2))
+        vcFilt = 'high'; flim1 = flim(1);
+    else vcFilt = 'bandpass'; flim1 = flim;
+    end
+    [vrFiltB, vrFiltA] = butter(4, flim1 / Sfile.sRateHz/nInterp * 2, vcFilt); 
     mrWav = filter(vrFiltB, vrFiltA, mrWav);
 end
 figure; plotTraces(mrWav, 'sRateHz', Sfile.sRateHz*nInterp, ...
@@ -69,15 +76,30 @@ end
 
 %%
 P = struct('sRateHz', Sfile.sRateHz*nInterp, 'nPadding', 16, 'nInterp', 4, ...
-    'thresh', [], 'maxAmp', maxAmp, 'nSpkMax', 100, 'spkLim', [-1,2]*16*nInterp, ...
-    'funcFet', [], 'vcDist', 'euclidean', 'percent', .2, 'spkRemoveZscore', 3, ...
-    'iCluNoise', 0);
+    'thresh', [], 'maxAmp', maxAmp, 'nSpkMax', 100, 'spkLim', [-1,3]*16*nInterp, ...
+    'funcFet', [], 'vcDist', 'cosine', 'percent', .2, 'spkRemoveZscore', 3, ...
+    'iCluNoise', 0, 'fNormFet', 0, 'fZscore', 0, 'vcFet', 'pcaxcov', 'nPcaPerChan', 3, ...
+    'vcFetMeas', 'vpp', 'slopeLim', [-8,16], 'mrSiteLoc', Sfile.Siteloc(:,viChan));
 [S, P] = buildSpikeTable(mrWav, P);
 %
 P.fAskUser =  1;
+tic
 [S, P] = cluster1(S, P);
+P.viClu = S.Sclu.cl;
+toc
 
 %
-figure; plotTetClu(S.mrFet, 'maxAmp', maxAmp, 'viClu', S.Sclu.cl);
+P.ampLim = [-5 5];
+figure; plotTetClu(S.mrFet, P);
 figure; plotWaveform(S, P);
-fprintf('%0.1f %% of spikes clustered\n', sum(S.Sclu.cl>=1)/numel(S.vrTime)*100);
+
+vr = S.trSpkWav(17,:,:); %nPadding 
+qqThresh = median(abs(vr(:)))* (5/.6745);
+fprintf('QQ thresh: %0.1f uV\n', qqThresh);
+
+% save
+vcOutFilename1= [vcOutFilename(1:end-4), '_' P.vcFet, '.csv'];
+vcOutFilename2= [vcOutFilename(1:end-4), '_' P.vcFet, '.mat'];
+viTime = ceil(S.vrTime(:)*Sfile.sRateHz*nInterp)-1;
+dlmwrite(vcOutFilename1, [S.vrTime(:), S.Sclu.cl],'precision','%.6f');
+save(vcOutFilename2, 'S', 'P');

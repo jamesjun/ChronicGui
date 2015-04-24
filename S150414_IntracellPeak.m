@@ -76,7 +76,7 @@ timeLim = [-8, 23]; % [-1 2]*32;
 
 viSpkExt = peakDetector(-sum(mrWav(:,viChExt),2), 'fPlot', 1, 'peakThresh', .1, 'minInterval', 20);
 [trSpkWavExt, viSpkExt] = waveformTrig(mrWav(:,[iChInt, viChExt]), viSpkExt, timeLim);
-figure; plotSpkWav(trSpkWavExt); title('EC');
+figure; trPlot(trSpkWavExt); title('EC');
 %%
 nLag = 4;
 fMix = 0;

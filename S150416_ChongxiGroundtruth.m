@@ -37,7 +37,7 @@ timeLim = [-23, 8]*nInterp;
 trSpkWav = waveformTrig(mrWav(:, [iChInt, viChExt]), viSpk, timeLim);
 P.csTitles = {'Int', 'EC1', 'EC2', 'EC3'};
 P.grid = 'on';
-figure; plotSpkWav(trSpkWav, P);
+figure; trPlot(trSpkWav, P);
 
 % vrWavIntDiff = -differentiate(mrWav(:,iChInt));
 % trSpkWav1 = trSpkWav;
@@ -57,7 +57,7 @@ fprintf('extSpkThresh=%f\n', extSpkThresh);
 viSpkExt = peakDetector(-sum(mrWav(:,viChExt),2), 'fPlot', 0, 'peakThresh', extSpkThresh, 'minInterval', 20);
 [trSpkWavExt, viSpkExt] = waveformTrig(mrWav(:,[iChInt, viChExt]), viSpkExt, timeLim);
 
-figure; plotSpkWav(trSpkWavExt); title('EC min');
+figure; trPlot(trSpkWavExt); title('EC min');
 
 %trSpkWavExt1 = alignSpkWav(trSpkWavExt, 'iMax', -timeLim(1)+1, 'viChan', viChExt);
 %figure; plotSpkWav(trSpkWavExt1); title('EC neo');
